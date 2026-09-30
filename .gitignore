@@ -1,0 +1,5 @@
+.claude/settings.local.json
+*.ai
+node_modules/
+.DS_Store
+Thumbs.db

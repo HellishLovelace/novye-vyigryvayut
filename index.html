@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Новые выигрывают!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+    <div class="bg">
+      <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+      <svg class="waves" viewBox="0 0 1920 260" preserveAspectRatio="none">
+        <path class="w1" d="M0 120 C 240 60 480 180 720 120 S 1200 60 1440 120 S 1800 180 1920 120 V260 H0Z"/>
+        <path class="w2" d="M0 170 C 240 120 480 220 720 170 S 1200 120 1440 170 S 1800 220 1920 170 V260 H0Z"/>
+      </svg>
+    </div>
+
+    <div class="brand">НОВЫЕ <b>БИРЮЗОВЫЕ</b></div>
+
+    <!-- 1. Главная -->
+    <section id="screen-intro" class="screen active">
+      <h1 class="title">Новые <span>выигрывают!</span></h1>
+      <div class="orbit" id="orbit"></div>
+      <div class="main-prize">
+        <div class="glow"></div>
+        <div id="house"></div>
+        <div class="ribbon">Главный приз</div>
+      </div>
+      <button class="btn-start" id="btn-start">Старт</button>
+    </section>
+
+    <!-- 2. Барабан -->
+    <section id="screen-draw" class="screen">
+      <h2 class="subtitle">Бот ищет победителя…</h2>
+      <div class="reel" id="reel">
+        <div class="reel-frame"></div>
+        <div class="reel-items" id="reel-items"></div>
+      </div>
+      <button class="btn-stop" id="btn-stop" title="Стоп">
+        <svg viewBox="0 0 200 300" class="kite-stop">
+          <path d="M100 6 L190 110 L100 214 L10 110 Z" fill="#ff8a3d" stroke="#fff" stroke-width="6"/>
+          <path d="M100 6 L100 214 M10 110 L190 110" stroke="#fff" stroke-width="3" opacity=".7"/>
+          <path class="tail" d="M100 214 C 80 240 120 255 100 280 S 90 300 104 300" stroke="#fff" stroke-width="4" fill="none"/>
+          <text x="100" y="124" text-anchor="middle">СТОП</text>
+        </svg>
+      </button>
+      <div class="sup-track" id="sup-track">
+        <div class="sup-trail" id="sup-trail"></div>
+        <div class="sup-rider" id="sup-rider"></div>
+        <div class="sup-label" id="sup-label">0%</div>
+      </div>
+    </section>
+
+    <!-- 3. Победитель -->
+    <section id="screen-winner" class="screen">
+      <div class="kites" id="kites"></div>
+      <div class="winner-card">
+        <div class="winner-photo"><img id="w-photo" alt=""></div>
+        <div class="winner-info">
+          <div class="badge">Победитель!</div>
+          <div class="w-surname" id="w-surname"></div>
+          <div class="w-name" id="w-name"></div>
+          <div class="w-town"><svg viewBox="0 0 24 24"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg><span id="w-town"></span></div>
+        </div>
+      </div>
+      <button class="btn-next" id="btn-to-reserve">10 запасных победителей →</button>
+    </section>
+
+    <!-- 4–5. Запасные -->
+    <section id="screen-reserve" class="screen">
+      <h2 class="subtitle">Запасные победители</h2>
+      <p class="note">Выбираются на случай, если основной победитель не предоставит документы для получения приза</p>
+      <div class="reserve-grid" id="reserve-grid"></div>
+      <button class="btn-next" id="btn-reserve-run">Запустить барабан</button>
+    </section>
+
+    <canvas id="confetti" width="1920" height="1080"></canvas>
+  </div>
+</div>
+
+<!-- Пульт ведущего: клавиша H -->
+<aside id="panel" hidden>
+  <h3>Пульт ведущего</h3>
+  <p>Участников: <b id="p-count">0</b> <small id="p-source">(демо)</small></p>
+  <label class="file">Загрузить участников (CSV из Google Таблицы)
+    <input type="file" id="p-file" accept=".csv,.txt,text/csv">
+  </label>
+  <label>Автостоп сапа, сек (0 — только кнопкой)
+    <input type="number" id="p-auto" min="0" max="120" step="1">
+  </label>
+  <label class="chk"><input type="checkbox" id="p-sound"> Звук</label>
+  <label class="chk"><input type="checkbox" id="p-exclude"> Не включать в запасные прошлых победителей текущей сессии</label>
+  <div class="row">
+    <button id="p-export">Скачать протокол</button>
+    <button id="p-demo">Демо-участники</button>
+    <button id="p-reset">На главную</button>
+  </div>
+  <div class="keys">
+    <b>Space</b> — старт / стоп / далее · <b>Esc</b> — на главную · <b>F</b> — полный экран · <b>H</b> — пульт
+  </div>
+  <div id="p-log"></div>
+</aside>
+
+<script src="js/prizes.js"></script>
+<script src="js/data.js"></script>
+<script src="js/confetti.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
