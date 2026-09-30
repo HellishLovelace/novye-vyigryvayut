@@ -44,38 +44,31 @@
   function show(name) {
     screen = name;
     document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('active', s.id === 'screen-' + name); });
-    if (name === 'intro') startOrbit(); else stopOrbit();
+    if (name === 'intro') countUp();
     if (name !== 'winner') $('kites').innerHTML = '';
   }
 
-  // ---------- 1. Главная: летающие призы ----------
-  $('house').innerHTML = HOUSE_SVG;
-  var orbitEls = PRIZES.map(function (p, i) {
+  // ---------- 1. Главная: главный приз и летающие предметы ----------
+  $('bg').innerHTML = BG_SVG;
+  document.querySelectorAll('[data-brush]').forEach(function (el, i) { brushify(el, 11 + i * 31); });
+  DECOR.forEach(function (d) {
     var el = document.createElement('div');
-    el.className = 'prize';
-    el.innerHTML = p.img ? '<img src="' + p.img + '" alt="">' : p.svg;
-    el.title = p.name;
-    el._a = (i / PRIZES.length) * Math.PI * 2;
-    el._b = Math.random() * 6.28;
-    $('orbit').appendChild(el);
-    return el;
+    el.className = 'fly ' + d[0];
+    el.innerHTML = DECOR_ITEMS[d[0]];
+    el.style.cssText = 'left:' + (d[1] - d[3] / 2) + 'px;top:' + (d[2] - d[3] / 2) + 'px;width:' + d[3] + 'px;--d:' + d[4] + 's;--dl:' + d[5] + 's';
+    $('decor').appendChild(el);
   });
-  var orbitRaf = 0;
-  function orbitFrame(t) {
-    var s = t / 1000;
-    orbitEls.forEach(function (el) {
-      var a = el._a + s * 0.12;
-      var x = 960 + Math.cos(a) * 760, y = 600 + Math.sin(a) * 250 + Math.sin(s * 1.6 + el._b) * 18;
-      var depth = (Math.sin(a) + 1) / 2; // 0 — сзади, 1 — спереди
-      var sc = 0.7 + depth * 0.5;
-      el.style.transform = 'translate(' + (x - 70) + 'px,' + (y - 70) + 'px) scale(' + sc + ') rotate(' + Math.sin(s + el._b) * 12 + 'deg)';
-      el.style.zIndex = depth > 0.92 ? 4 : 1;
-      el.style.opacity = 0.65 + depth * 0.35;
-    });
-    orbitRaf = requestAnimationFrame(orbitFrame);
+  var PRIZE_SUM = 1500000, countRaf = 0;
+  function fmt(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
+  function countUp() {
+    cancelAnimationFrame(countRaf);
+    var t0 = performance.now() + 250, T = 2200;
+    (function step(t) {
+      var k = Math.max(0, Math.min(1, (t - t0) / T));
+      $('amount').textContent = fmt(Math.round(PRIZE_SUM * (1 - Math.pow(1 - k, 4)) / 1000) * 1000);
+      if (k < 1) countRaf = requestAnimationFrame(step);
+    })(performance.now());
   }
-  function startOrbit() { if (!orbitRaf) orbitRaf = requestAnimationFrame(orbitFrame); }
-  function stopOrbit() { cancelAnimationFrame(orbitRaf); orbitRaf = 0; }
 
   // ---------- 2. Барабан ----------
   var reelNodes = [];
@@ -119,12 +112,11 @@
   }
 
   var supProg = 0;
-  $('sup-rider').innerHTML = SUP_SVG;
   function setSup(prog, label) {
     supProg = prog;
-    var w = $('sup-track').clientWidth - 220;
+    var w = $('sup-track').clientWidth - 340;
     $('sup-rider').style.transform = 'translateX(' + (prog * w) + 'px)';
-    $('sup-trail').style.width = (prog * w + 110) + 'px';
+    $('sup-trail').style.width = (prog * w + 40) + 'px';
     $('sup-label').textContent = label || (Math.floor(prog * 100) + '%');
   }
 
@@ -208,19 +200,13 @@
     while (el.scrollWidth > el.clientWidth && size > 40) { size -= 4; el.style.fontSize = size + 'px'; }
   }
 
-  function kiteSVG(c1, c2) {
-    return '<svg viewBox="0 0 120 220"><path d="M60 4 112 64 60 150 8 64z" fill="' + c1 + '" stroke="#fff" stroke-width="4"/>' +
-      '<path d="M60 4 112 64 60 64z M8 64 60 64 60 150z" fill="' + c2 + '"/>' +
-      '<path class="k-tail" d="M60 150c-14 14 14 22 0 36s12 20 0 32" stroke="#fff" stroke-width="3" fill="none"/>' +
-      '<path d="M52 170l8 6 8-6M52 196l8 6 8-6" stroke="#ffd166" stroke-width="5" fill="none"/></svg>';
-  }
   function launchKites() {
-    var box = $('kites'), cols = [['#ff8a3d', '#ffd166'], ['#19b3a6', '#0b4f5c'], ['#2cc4a0', '#fff6e9'], ['#4cc9f0', '#19b3a6'], ['#ff8a3d', '#e2553a']];
+    var box = $('kites');
     box.innerHTML = '';
-    for (var i = 0; i < 7; i++) {
-      var k = document.createElement('div'), c = cols[i % cols.length];
-      k.className = 'kite k' + i;
-      k.innerHTML = kiteSVG(c[0], c[1]);
+    for (var i = 0; i < 6; i++) {
+      var k = document.createElement('div');
+      k.className = 'wkite k' + i + (i % 2 ? ' coral' : '');
+      k.innerHTML = '<img src="assets/brand/kite.png" alt="">';
       box.appendChild(k);
     }
   }
@@ -339,6 +325,28 @@
     };
     r.readAsText(f, 'utf-8');
   });
+  // Загрузка из Google Таблицы через веб-приложение Apps Script (apps-script/final-export.gs)
+  $('p-url').value = store.get('sheetUrl', '');
+  $('p-key').value = store.get('sheetKey', '');
+  function setStatus(msg, err) { $('p-status').textContent = msg; $('p-status').className = err ? 'err' : ''; }
+  function loadFromSheet() {
+    var url = $('p-url').value.trim(), key = $('p-key').value.trim();
+    if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) { setStatus('Нужна ссылка вида https://script.google.com/macros/s/…/exec', true); return; }
+    store.set('sheetUrl', url); store.set('sheetKey', key);
+    $('p-load').disabled = true; setStatus('Загружаю…');
+    fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + 'action=final&key=' + encodeURIComponent(key))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.status !== 'ok') throw new Error(d.message || d.status);
+        participants = Data.fromList(d.participants);
+        source = 'Google Таблица, ' + (d.updated || 'сейчас');
+        store.set('participants', participants); store.set('source', source);
+        syncPanel(); setStatus('Загружено участников: ' + participants.length);
+      })
+      .catch(function (e) { setStatus('Ошибка: ' + e.message, true); })
+      .then(function () { $('p-load').disabled = false; });
+  }
+  $('p-load').addEventListener('click', loadFromSheet);
   $('p-auto').addEventListener('change', function () { settings.auto = Math.max(0, +this.value || 0); store.set('auto', settings.auto); });
   $('p-sound').addEventListener('change', function () { settings.sound = this.checked; store.set('sound', settings.sound); });
   $('p-exclude').addEventListener('change', function () { settings.exclude = this.checked; store.set('exclude', settings.exclude); });

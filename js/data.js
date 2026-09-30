@@ -100,8 +100,23 @@
     return list;
   }
 
+  // Список из веб-приложения Apps Script: [{id, surname, name, town, photo}]
+  function fromList(arr) {
+    var list = [], seen = {};
+    (arr || []).forEach(function (p, i) {
+      var id = String(p.id || ''), surname = String(p.surname || '').trim(), name = String(p.name || '').trim();
+      if (!surname && !name) { if (!id) return; surname = 'VK id' + id; }
+      var key = id || (surname + ' ' + name);
+      if (seen[key]) return;
+      seen[key] = 1;
+      list.push({ id: id || ('row' + i), surname: surname, name: name, town: String(p.town || '').trim(), photo: String(p.photo || '') });
+    });
+    if (!list.length) throw new Error('В таблице нет участников');
+    return list;
+  }
+
   // ---------- Аватар-заглушка, если нет фото ----------
-  var PAL = [['#19b3a6', '#0b4f5c'], ['#ff8a3d', '#e2553a'], ['#2cc4a0', '#107a74'], ['#ffd166', '#ff8a3d'], ['#4cc9f0', '#19b3a6']];
+  var PAL = [['#0ad1c9', '#0ba8a2'], ['#f26b7c', '#ef4056'], ['#0ba8a2', '#067a76'], ['#ef4056', '#c92a45']];
   var cache = {};
   function avatar(p) {
     if (p.photo) return p.photo;
@@ -118,5 +133,5 @@
     return (cache[p.id] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
   }
 
-  window.Data = { randInt: randInt, shuffle: shuffle, demo: demo, fromCSV: fromCSV, avatar: avatar };
+  window.Data = { randInt: randInt, shuffle: shuffle, demo: demo, fromCSV: fromCSV, fromList: fromList, avatar: avatar };
 })();

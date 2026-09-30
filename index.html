@@ -6,77 +6,78 @@
 <title>Новые выигрывают!</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800;900&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <div id="viewport">
   <div id="stage">
-    <div class="bg">
-      <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-      <svg class="waves" viewBox="0 0 1920 260" preserveAspectRatio="none">
-        <path class="w1" d="M0 120 C 240 60 480 180 720 120 S 1200 60 1440 120 S 1800 180 1920 120 V260 H0Z"/>
-        <path class="w2" d="M0 170 C 240 120 480 220 720 170 S 1200 120 1440 170 S 1800 220 1920 170 V260 H0Z"/>
-      </svg>
-    </div>
+    <div class="bg" id="bg"></div>
 
-    <div class="brand">НОВЫЕ <b>БИРЮЗОВЫЕ</b></div>
+    <img class="logo" src="assets/brand/logo-white.png" alt="Новые Бирюзовые">
+    <div class="date-pill">Финал · <span id="final-date">1 октября 2026</span></div>
 
     <!-- 1. Главная -->
     <section id="screen-intro" class="screen active">
-      <h1 class="title">Новые <span>выигрывают!</span></h1>
-      <div class="orbit" id="orbit"></div>
-      <div class="main-prize">
-        <div class="glow"></div>
-        <div id="house"></div>
-        <div class="ribbon">Главный приз</div>
+      <div class="decor" id="decor"></div>
+      <h1 class="title">Новые выигрывают!</h1>
+      <div class="prize">
+        <div class="pill pill-white prize-label">Главный приз</div>
+        <div class="amount-wrap">
+          <div class="brush brush-pink" data-brush></div>
+          <div class="amount"><span id="amount">1 500 000</span> ₽</div>
+        </div>
+        <div class="pill pill-coral prize-sub">на квартиру мечты!</div>
       </div>
-      <button class="btn-start" id="btn-start">Старт</button>
+      <button class="btn btn-start" id="btn-start">Старт</button>
     </section>
 
     <!-- 2. Барабан -->
     <section id="screen-draw" class="screen">
-      <h2 class="subtitle">Бот ищет победителя…</h2>
-      <div class="reel" id="reel">
-        <div class="reel-frame"></div>
-        <div class="reel-items" id="reel-items"></div>
+      <h2 class="pill pill-pink heading" id="draw-heading">Бот ищет победителя…</h2>
+      <div class="reel-wrap">
+        <div class="brush brush-pink reel-brush" data-brush></div>
+        <div class="reel" id="reel"><div class="reel-items" id="reel-items"></div></div>
       </div>
       <button class="btn-stop" id="btn-stop" title="Стоп">
-        <svg viewBox="0 0 200 300" class="kite-stop">
-          <path d="M100 6 L190 110 L100 214 L10 110 Z" fill="#ff8a3d" stroke="#fff" stroke-width="6"/>
-          <path d="M100 6 L100 214 M10 110 L190 110" stroke="#fff" stroke-width="3" opacity=".7"/>
-          <path class="tail" d="M100 214 C 80 240 120 255 100 280 S 90 300 104 300" stroke="#fff" stroke-width="4" fill="none"/>
-          <text x="100" y="124" text-anchor="middle">СТОП</text>
-        </svg>
+        <span class="kite-string"></span>
+        <img src="assets/brand/kite.png" alt="">
+        <span class="pill pill-red stop-label">СТОП</span>
       </button>
       <div class="sup-track" id="sup-track">
+        <svg class="sup-water" viewBox="0 0 1640 110" preserveAspectRatio="none"><path d="M0 40 Q 40 20 80 40 T 160 40 T 240 40 T 320 40 T 400 40 T 480 40 T 560 40 T 640 40 T 720 40 T 800 40 T 880 40 T 960 40 T 1040 40 T 1120 40 T 1200 40 T 1280 40 T 1360 40 T 1440 40 T 1520 40 T 1600 40 T 1680 40 V110 H0Z"/></svg>
         <div class="sup-trail" id="sup-trail"></div>
-        <div class="sup-rider" id="sup-rider"></div>
-        <div class="sup-label" id="sup-label">0%</div>
+        <div class="sup-rider" id="sup-rider">
+          <svg class="paddler" viewBox="0 0 120 170"><g fill="none" stroke="#111" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="58" cy="22" r="14" fill="#fff"/><path d="M58 38v58M58 96l-16 56M58 96l18 56M58 54l26 18M58 58l-18 22"/>
+            <path d="M98 10 76 160" stroke="#fff" stroke-width="6"/><path d="M70 150l-6 18 14-2z" fill="#ef4056" stroke="#ef4056"/></g></svg>
+          <img class="board" src="assets/brand/sup.png" alt="">
+        </div>
+        <div class="pill pill-white sup-label" id="sup-label">0%</div>
       </div>
     </section>
 
     <!-- 3. Победитель -->
     <section id="screen-winner" class="screen">
       <div class="kites" id="kites"></div>
-      <div class="winner-card">
-        <div class="winner-photo"><img id="w-photo" alt=""></div>
+      <div class="winner">
+        <div class="polaroid"><img id="w-photo" alt=""></div>
         <div class="winner-info">
-          <div class="badge">Победитель!</div>
-          <div class="w-surname" id="w-surname"></div>
-          <div class="w-name" id="w-name"></div>
-          <div class="w-town"><svg viewBox="0 0 24 24"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg><span id="w-town"></span></div>
+          <div class="pill pill-red badge">Победитель!</div>
+          <div class="label-white w-fio"><div id="w-surname"></div><div id="w-name"></div></div>
+          <div class="pill pill-dark w-town"><svg viewBox="0 0 24 24"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg><span id="w-town"></span></div>
+          <div class="w-prize">забирает <b>1 500 000 ₽</b> на квартиру мечты</div>
         </div>
       </div>
-      <button class="btn-next" id="btn-to-reserve">10 запасных победителей →</button>
+      <button class="btn btn-next" id="btn-to-reserve">10 запасных победителей →</button>
     </section>
 
     <!-- 4–5. Запасные -->
     <section id="screen-reserve" class="screen">
-      <h2 class="subtitle">Запасные победители</h2>
-      <p class="note">Выбираются на случай, если основной победитель не предоставит документы для получения приза</p>
+      <h2 class="pill pill-pink heading">Запасные победители</h2>
+      <p class="note">на случай, если основной победитель не предоставит документы для получения приза</p>
       <div class="reserve-grid" id="reserve-grid"></div>
-      <button class="btn-next" id="btn-reserve-run">Запустить барабан</button>
+      <button class="btn btn-next" id="btn-reserve-run">Запустить барабан</button>
     </section>
 
     <canvas id="confetti" width="1920" height="1080"></canvas>
@@ -87,14 +88,27 @@
 <aside id="panel" hidden>
   <h3>Пульт ведущего</h3>
   <p>Участников: <b id="p-count">0</b> <small id="p-source">(демо)</small></p>
-  <label class="file">Загрузить участников (CSV из Google Таблицы)
+
+  <fieldset>
+    <legend>Google Таблица</legend>
+    <label>Ссылка веб-приложения Apps Script
+      <input type="url" id="p-url" placeholder="https://script.google.com/macros/s/…/exec">
+    </label>
+    <label>Ключ доступа (FINAL_KEY)
+      <input type="password" id="p-key" autocomplete="off">
+    </label>
+    <div class="row"><button id="p-load">Загрузить из таблицы</button></div>
+    <small id="p-status"></small>
+  </fieldset>
+
+  <label class="file">…или CSV-файл
     <input type="file" id="p-file" accept=".csv,.txt,text/csv">
   </label>
   <label>Автостоп сапа, сек (0 — только кнопкой)
     <input type="number" id="p-auto" min="0" max="120" step="1">
   </label>
   <label class="chk"><input type="checkbox" id="p-sound"> Звук</label>
-  <label class="chk"><input type="checkbox" id="p-exclude"> Не включать в запасные прошлых победителей текущей сессии</label>
+  <label class="chk"><input type="checkbox" id="p-exclude"> Не включать в запасные победителей прошлых запусков</label>
   <div class="row">
     <button id="p-export">Скачать протокол</button>
     <button id="p-demo">Демо-участники</button>
@@ -106,7 +120,7 @@
   <div id="p-log"></div>
 </aside>
 
-<script src="js/prizes.js"></script>
+<script src="js/decor.js"></script>
 <script src="js/data.js"></script>
 <script src="js/confetti.js"></script>
 <script src="js/app.js"></script>

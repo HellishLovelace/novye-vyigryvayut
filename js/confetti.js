@@ -1,7 +1,7 @@
 /* Конфетти на canvas поверх сцены. */
 (function () {
   var cv, ctx, parts = [], running = false, rainUntil = 0;
-  var COLORS = ['#19b3a6', '#2cc4a0', '#ff8a3d', '#ffd166', '#ffffff', '#4cc9f0', '#0b4f5c'];
+  var COLORS = ['#0ad1c9', '#0ba8a2', '#d6eeec', '#ef4056', '#f26b7c', '#f5a9c9', '#ffffff', '#111111'];
 
   function spawn(x, y, n, spread, power) {
     for (var i = 0; i < n; i++) {
