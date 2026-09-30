@@ -125,13 +125,13 @@
   var supProg = 0, lastDrop = 0;
   function setSup(prog, label) {
     supProg = prog;
-    var W = $('sea').clientWidth, x0 = 60, x1 = W - 120 - 120 - 460 + 60;
+    var W = $('sea').clientWidth, x0 = 60, x1 = W - 830; // нос доски останавливается перед флажком «Финиш»
     var x = x0 + prog * (x1 - x0), t = performance.now() / 1000;
     var bob = Math.sin(t * 3.2) * 7, tilt = Math.cos(t * 3.2) * 3 - (reel.v > 2 ? 2 : 0);
     $('sup-rider').style.transform = 'translate(' + x + 'px,' + bob + 'px) rotate(' + tilt + 'deg)';
     $('sup-trail').style.width = Math.max(0, x + 20) + 'px';
     $('sup-label').textContent = label || (Math.floor(prog * 100) + '%');
-    if (reel.v > 3 && t - lastDrop > 0.03) { lastDrop = t; splash(x + 30, 60 - bob, reel.v / V_MAX); }
+    if (reel.v > 3 && t - lastDrop > 0.03) { lastDrop = t; splash(x + 30, 80 - bob, reel.v / V_MAX); }
   }
   function splash(x, y, power) {
     var sea = $('sea');

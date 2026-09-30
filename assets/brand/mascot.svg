@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 390">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 540">
   <!-- Маскот «Новых Бирюзовых»: нерпа на сапе. Стиль айдентики: чёрный контур, белая заливка, бирюза и красный -->
   <g stroke="#111" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
     <!-- хвостовые ласты -->
@@ -25,11 +25,11 @@
     <path d="M110 120 C 150 104 204 104 240 118 L 238 140 C 204 126 150 126 110 142 Z" fill="#0ba8a2"/>
     <rect x="160" y="117" width="30" height="16" rx="3" fill="#fff" stroke-width="4"/>
 
-    <!-- весло поперёк тела -->
-    <path d="M296 130 L 104 364" fill="none" stroke-width="9"/>
-    <path d="M296 130 L 104 364" fill="none" stroke="#0ad1c9" stroke-width="3"/>
-    <rect x="279" y="123" width="34" height="14" rx="6" transform="rotate(39 296 130)" fill="#0ad1c9"/>
-    <rect x="86" y="324" width="34" height="74" rx="14" transform="rotate(39 103 361)" fill="#ef4056"/>
+    <!-- весло: почти вертикально, лопасть уходит вниз мимо доски в воду -->
+    <path d="M262 80 L 104 514" fill="none" stroke-width="9"/>
+    <path d="M262 80 L 104 514" fill="none" stroke="#0ad1c9" stroke-width="3"/>
+    <rect x="245" y="73" width="34" height="14" rx="6" transform="rotate(20 262 80)" fill="#0ad1c9"/>
+    <rect x="94" y="446" width="36" height="84" rx="14" transform="rotate(20 112 488)" fill="#ef4056"/>
 
     <!-- ласты держат весло -->
     <path d="M104 250 C 128 240 170 236 200 238 C 214 240 214 258 200 260 C 170 262 130 266 110 270 C 96 272 92 256 104 250 Z" fill="#fff"/>
