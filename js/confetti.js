@@ -43,11 +43,13 @@
 
   window.Confetti = {
     init: function (el) { cv = el; ctx = cv.getContext('2d'); },
+    resize: function (w, h) { cv.width = w; cv.height = h; },
     burst: function (x, y, n) { spawn(x, y, n || 160, 1.6, 22); },
     celebrate: function (ms) {
-      spawn(200, 1080, 180, 0.9, 30);
-      spawn(1720, 1080, 180, 0.9, 30);
-      setTimeout(function () { spawn(960, 700, 220, 2.4, 24); }, 350);
+      var W = cv.width, H = cv.height;
+      spawn(W * 0.1, H, 180, 0.9, 30);
+      spawn(W * 0.9, H, 180, 0.9, 30);
+      setTimeout(function () { spawn(W / 2, H * 0.65, 220, 2.4, 24); }, 350);
       rainUntil = performance.now() + (ms || 7000);
       if (!running) { running = true; requestAnimationFrame(tick); }
     },

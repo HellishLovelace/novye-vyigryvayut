@@ -1,7 +1,8 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); };
   var RESERVE_COUNT = 10;
-  var ITEM_H = 132, VISIBLE = 5, V_MAX = 20; // высота карточки, видимых карточек, скорость (карточек/с)
+  var ITEM_H = 132, NODES = 9, V_MAX = 20; // высота карточки, карточек на барабане, скорость (карточек/с)
+  var DRUM_R = 380, DRUM_STEP = ITEM_H / DRUM_R; // радиус цилиндра и угол между карточками (рад)
 
   // ---------- Состояние ----------
   var store = {
@@ -15,10 +16,17 @@
   var current = null; // { winner, reserves, time }
   var screen = 'intro';
 
-  // ---------- Масштаб сцены 1920×1080 ----------
+  // ---------- Масштаб сцены ----------
+  // Базовая высота 1080. Если экран шире 16:9 — сцена расширяется (фон и волны до краёв),
+  // если уже — расширяется по высоте. Центральный контент всегда в зоне 1920×1080.
+  Confetti.init($('confetti'));
   function fit() {
-    var s = Math.min(innerWidth / 1920, innerHeight / 1080);
-    $('stage').style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+    var ar = innerWidth / innerHeight, W = 1920, H = 1080;
+    if (ar >= 16 / 9) W = Math.round(1080 * ar); else H = Math.round(1920 / ar);
+    var st = $('stage');
+    st.style.width = W + 'px'; st.style.height = H + 'px'; st.style.setProperty('--H', H + 'px');
+    st.style.transform = 'translate(-50%,-50%) scale(' + (innerWidth / W) + ')';
+    Confetti.resize(W, H);
   }
   addEventListener('resize', fit); fit();
 
@@ -72,7 +80,7 @@
 
   // ---------- 2. Барабан ----------
   var reelNodes = [];
-  for (var i = 0; i < VISIBLE + 2; i++) {
+  for (var i = 0; i < NODES; i++) {
     var n = document.createElement('div');
     n.className = 'card';
     n.innerHTML = '<img alt=""><div class="c-text"><div class="c-name"></div><div class="c-town"></div></div>';
@@ -94,16 +102,18 @@
     node.name.textContent = p.surname + ' ' + p.name;
     node.town.textContent = p.town || '';
   }
+  // Карточки лежат на поверхности цилиндра: чем дальше от центра, тем сильнее повёрнуты
   function renderReel() {
-    var base = Math.floor(reel.p), mid = (VISIBLE * ITEM_H) / 2;
-    var blur = Math.min(6, reel.v / 4);
+    var base = Math.floor(reel.p), mid = $('reel').clientHeight / 2;
+    var blur = Math.min(4, reel.v / 5);
     reelNodes.forEach(function (nd, j) {
-      var k = base - Math.floor(VISIBLE / 2) - 1 + j;
+      var k = base - Math.floor(NODES / 2) + j;
       if (nd.slot !== k) { nd.slot = k; fill(nd, slotPerson(k)); }
-      var y = mid + (k - reel.p) * ITEM_H - ITEM_H / 2;
-      var d = Math.abs(k - reel.p);
-      nd.el.style.transform = 'translateY(' + y + 'px) scale(' + Math.max(0.78, 1.08 - d * 0.1) + ')';
-      nd.el.style.opacity = Math.max(0.15, 1 - d * 0.26);
+      var a = (k - reel.p) * DRUM_STEP;
+      if (Math.abs(a) > 1.5) { nd.el.style.visibility = 'hidden'; return; }
+      nd.el.style.visibility = '';
+      nd.el.style.transform = 'translateY(' + (mid - ITEM_H / 2) + 'px) translateZ(' + (-DRUM_R) + 'px) rotateX(' + (-a) + 'rad) translateZ(' + DRUM_R + 'px)';
+      nd.el.style.opacity = Math.max(0, Math.cos(a) * 1.25 - 0.2).toFixed(3);
       nd.el.style.filter = blur > 0.5 ? 'blur(' + blur.toFixed(1) + 'px)' : 'none';
       nd.el.classList.toggle('hit', reel.state === 'done' && k === reel.stop.target);
     });
@@ -111,13 +121,29 @@
     if (cur !== reel.lastSlot) { reel.lastSlot = cur; tick(); }
   }
 
-  var supProg = 0;
+  // Сап-борд: едет от левого края к флажку «Финиш», качается на волне, за ним брызги
+  var supProg = 0, lastDrop = 0;
   function setSup(prog, label) {
     supProg = prog;
-    var w = $('sup-track').clientWidth - 340;
-    $('sup-rider').style.transform = 'translateX(' + (prog * w) + 'px)';
-    $('sup-trail').style.width = (prog * w + 40) + 'px';
+    var W = $('sea').clientWidth, x0 = 60, x1 = W - 120 - 120 - 460 + 60;
+    var x = x0 + prog * (x1 - x0), t = performance.now() / 1000;
+    var bob = Math.sin(t * 3.2) * 7, tilt = Math.cos(t * 3.2) * 3 - (reel.v > 2 ? 2 : 0);
+    $('sup-rider').style.transform = 'translate(' + x + 'px,' + bob + 'px) rotate(' + tilt + 'deg)';
+    $('sup-trail').style.width = Math.max(0, x + 20) + 'px';
     $('sup-label').textContent = label || (Math.floor(prog * 100) + '%');
+    if (reel.v > 3 && t - lastDrop > 0.03) { lastDrop = t; splash(x + 30, 60 - bob, reel.v / V_MAX); }
+  }
+  function splash(x, y, power) {
+    var sea = $('sea');
+    for (var i = 0; i < 2; i++) {
+      var d = document.createElement('div');
+      d.className = 'drop';
+      var sz = 6 + Math.random() * 12;
+      d.style.cssText = 'left:' + x + 'px;bottom:' + y + 'px;width:' + sz + 'px;height:' + sz + 'px;' +
+        '--dx:' + (-(60 + Math.random() * 140) * power) + 'px;--dy:' + (-(20 + Math.random() * 70) * power) + 'px';
+      sea.appendChild(d);
+      setTimeout(function (el) { el.remove(); }, 800, d);
+    }
   }
 
   function reelFrame(t) {
@@ -127,17 +153,18 @@
       reel.v = Math.min(V_MAX, reel.v + V_MAX * dt * 1.2);
       reel.p += reel.v * dt;
       var prog = settings.auto > 0 ? Math.min(1, el / settings.auto) : Math.min(0.97, el / 30);
-      setSup(prog, 'Поиск… ' + Math.floor(prog * 100) + '%');
+      setSup(prog, 'Ищем… ' + Math.floor(prog * 100) + '%');
       if (settings.auto > 0 && prog >= 1) stopReel();
     } else if (reel.state === 'stopping') {
       var s = reel.stop, k = Math.min(1, (t - s.t) / (s.T * 1000));
       reel.p = s.p0 + (s.target - s.p0) * (1 - Math.pow(1 - k, 3));
       reel.v = (3 * (s.target - s.p0) / s.T) * Math.pow(1 - k, 2);
-      setSup(s.prog0 + (1 - s.prog0) * k, 'Поиск… ' + Math.floor((s.prog0 + (1 - s.prog0) * k) * 100) + '%');
+      setSup(s.prog0 + (1 - s.prog0) * k, 'Ищем… ' + Math.floor((s.prog0 + (1 - s.prog0) * k) * 100) + '%');
       if (k >= 1) { reel.state = 'done'; reel.v = 0; reel.p = s.target; onReelDone(); }
     }
+    if (reel.state === 'done') setSup(1, 'Найден!');
     renderReel();
-    if (reel.state === 'spin' || reel.state === 'stopping') requestAnimationFrame(reelFrame);
+    if (reel.state !== 'idle' && screen === 'draw') requestAnimationFrame(reelFrame); // доска качается и после остановки
   }
 
   function startDraw() {
@@ -148,6 +175,8 @@
     reelNodes.forEach(function (n) { n.slot = null; });
     $('btn-stop').disabled = false;
     $('screen-draw').classList.remove('found');
+    $('screen-draw').classList.add('spinning');
+    $('draw-heading').textContent = 'Бот ищет победителя…';
     show('draw');
     setSup(0);
     reel.t0 = reel.last = performance.now();
@@ -172,10 +201,14 @@
   }
 
   function onReelDone() {
-    setSup(1, 'Победитель найден!');
-    $('screen-draw').classList.add('found');
-    tone(880, 0.3, 'triangle', 0.12);
-    setTimeout(function () { showWinner(reel.winner); }, 1300);
+    var sd = $('screen-draw');
+    sd.classList.remove('spinning'); sd.classList.add('found');
+    $('draw-heading').textContent = 'Победитель найден!';
+    var fl = $('flash'); fl.classList.remove('go'); void fl.offsetWidth; fl.classList.add('go');
+    var r = $('reel').getBoundingClientRect(), st = $('stage').getBoundingClientRect(), k = $('stage').offsetWidth / st.width;
+    Confetti.burst((r.left + r.width / 2 - st.left) * k, (r.top + r.height / 2 - st.top) * k, 140);
+    tone(880, 0.3, 'triangle', 0.12); tone(1320, 0.5, 'triangle', 0.1, 0.12);
+    setTimeout(function () { showWinner(reel.winner); }, 1800);
   }
 
   // ---------- 3. Победитель ----------
@@ -257,7 +290,7 @@
       }
       // Все 10 появляются одним списком
       renderReserveGrid(picked);
-      Confetti.burst(960, 1080, 220);
+      Confetti.burst($('stage').offsetWidth / 2, $('stage').offsetHeight, 220);
       tone(660, 0.2, 'triangle', 0.1); tone(990, 0.4, 'triangle', 0.1, 0.12);
       if (current) { current.reserves = picked; saveHistory(); }
       reserveBusy = false;
@@ -266,7 +299,7 @@
     })();
   }
 
-  function goHome() { reel.state = 'idle'; Confetti.stop(); show('intro'); }
+  function goHome() { reel.state = 'idle'; $('screen-draw').classList.remove('spinning', 'found'); Confetti.stop(); show('intro'); }
 
   // ---------- Протокол ----------
   function saveHistory() {
@@ -380,7 +413,6 @@
   // Кнопки не держат фокус, чтобы пробел не срабатывал дважды
   document.querySelectorAll('button').forEach(function (b) { b.addEventListener('mouseup', function () { b.blur(); }); });
 
-  Confetti.init($('confetti'));
   syncPanel();
   show('intro');
 })();

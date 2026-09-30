@@ -36,6 +36,7 @@
     <section id="screen-draw" class="screen">
       <h2 class="pill pill-pink heading" id="draw-heading">Бот ищет победителя…</h2>
       <div class="reel-wrap">
+        <div class="rays"></div>
         <div class="brush brush-pink reel-brush" data-brush></div>
         <div class="reel" id="reel"><div class="reel-items" id="reel-items"></div></div>
       </div>
@@ -44,16 +45,26 @@
         <img src="assets/brand/kite.png" alt="">
         <span class="pill pill-red stop-label">СТОП</span>
       </button>
-      <div class="sup-track" id="sup-track">
-        <svg class="sup-water" viewBox="0 0 1640 110" preserveAspectRatio="none"><path d="M0 40 Q 40 20 80 40 T 160 40 T 240 40 T 320 40 T 400 40 T 480 40 T 560 40 T 640 40 T 720 40 T 800 40 T 880 40 T 960 40 T 1040 40 T 1120 40 T 1200 40 T 1280 40 T 1360 40 T 1440 40 T 1520 40 T 1600 40 T 1680 40 V110 H0Z"/></svg>
-        <div class="sup-trail" id="sup-trail"></div>
-        <div class="sup-rider" id="sup-rider">
-          <svg class="paddler" viewBox="0 0 120 170"><g fill="none" stroke="#111" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="58" cy="22" r="14" fill="#fff"/><path d="M58 38v58M58 96l-16 56M58 96l18 56M58 54l26 18M58 58l-18 22"/>
-            <path d="M98 10 76 160" stroke="#fff" stroke-width="6"/><path d="M70 150l-6 18 14-2z" fill="#ef4056" stroke="#ef4056"/></g></svg>
+      <!-- Статус-бар: сап-борд скользит по волнам к финишу -->
+      <div class="sea" id="sea">
+        <div class="gulls">
+          <svg class="gull g1" viewBox="0 0 60 24"><path d="M2 18 Q 16 2 30 16 Q 44 2 58 18"/></svg>
+          <svg class="gull g2" viewBox="0 0 60 24"><path d="M2 18 Q 16 2 30 16 Q 44 2 58 18"/></svg>
+          <svg class="gull g3" viewBox="0 0 60 24"><path d="M2 18 Q 16 2 30 16 Q 44 2 58 18"/></svg>
+        </div>
+        <div class="wave wave-back"></div>
+        <div class="wake" id="sup-trail"></div>
+        <div class="finish" id="finish">
+          <svg viewBox="0 0 120 200"><path d="M20 200V10" stroke="#111" stroke-width="8" stroke-linecap="round"/>
+            <g class="flag"><path d="M24 12h86l-18 30 18 30H24z" fill="#ef4056" stroke="#111" stroke-width="6" stroke-linejoin="round"/>
+            <path d="M40 30h14v14H40zM68 30h14v14H68zM54 44h14v14H54z" fill="#fff"/></g></svg>
+          <span class="pill pill-white">Финиш</span>
+        </div>
+        <div class="rider" id="sup-rider">
+          <div class="pill pill-white sup-label" id="sup-label">0%</div>
           <img class="board" src="assets/brand/sup.png" alt="">
         </div>
-        <div class="pill pill-white sup-label" id="sup-label">0%</div>
+        <div class="wave wave-front"></div>
       </div>
     </section>
 
@@ -69,7 +80,7 @@
           <div class="w-prize">забирает <b>1 500 000 ₽</b> на квартиру мечты</div>
         </div>
       </div>
-      <button class="btn btn-next" id="btn-to-reserve">10 запасных победителей →</button>
+      <button class="btn btn-next" id="btn-to-reserve">10 запасных победителей<svg class="arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 5l7 7-7 7"/></svg></button>
     </section>
 
     <!-- 4–5. Запасные -->
@@ -80,6 +91,7 @@
       <button class="btn btn-next" id="btn-reserve-run">Запустить барабан</button>
     </section>
 
+    <div class="flash" id="flash"></div>
     <canvas id="confetti" width="1920" height="1080"></canvas>
   </div>
 </div>
