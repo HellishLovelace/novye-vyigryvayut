@@ -206,8 +206,8 @@
   // Финиш поиска наступает, когда до причала добирается нерпа: прыжок с доски по дуге
   function jumpToFinish(done) {
     var sd = $('screen-draw'), jp = $('jumper'), W = $('sea').clientWidth;
-    var x0 = supX + 115, y0 = 100;          // ноги нерпы на палубе
-    var x1 = W - 295, y1 = 106;             // ноги на причале, правее флагштока
+    var x0 = supX + 79, y0 = 100;           // ноги нерпы на палубе (картинка с запасом 36px по бокам)
+    var x1 = W - 331, y1 = 106;             // ноги на причале, правее флагштока
     jp.style.left = x0 + 'px'; jp.style.bottom = y0 + 'px';
     sd.classList.add('jumped');
     splash(supX + 220, 70, 1); splash(supX + 260, 70, 1);

@@ -180,7 +180,7 @@ button { font: inherit; cursor: pointer; border: 0; background: none; color: inh
 .paddle-rest { position: absolute; left: 40px; bottom: 58px; width: 280px; opacity: 0; transition: opacity .2s; }
 .jumped .paddle-rest { opacity: 1; }
 .jumped .rider .person { visibility: hidden; }
-.jumper { position: absolute; width: 230px; display: none; transform-origin: 50% 100%; filter: drop-shadow(4px 4px 0 rgba(17,17,17,.25)); }
+.jumper { position: absolute; width: 302px; display: none; transform-origin: 50% 100%; filter: drop-shadow(4px 4px 0 rgba(17,17,17,.25)); }
 .jumped .jumper { display: block; }
 .gulls { position: absolute; left: 0; right: 0; bottom: 150px; height: 100px; }
 .gull { position: absolute; width: 56px; fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; animation: glide 26s linear infinite, flap .5s ease-in-out infinite alternate; }
@@ -277,13 +277,14 @@ button { font: inherit; cursor: pointer; border: 0; background: none; color: inh
 #p-log > div { margin-bottom: 6px; }
 
 /* Нерпа рядом с суммой на главном экране */
-.mascot-main { position: absolute; left: calc(50% - 890px); top: 420px; width: 280px; z-index: 3; /* под суммой: ласта не перекрывает цифры */ filter: drop-shadow(6px 8px 0 rgba(17,17,17,.2)); }
+.mascot-main { position: absolute; left: calc(50% - 840px); top: 380px; width: 370px; z-index: 3;
+  scale: -1 1; /* отражена: машет наружу, а к сумме стоит вплотную */ filter: drop-shadow(6px 8px 0 rgba(17,17,17,.2)); }
 #screen-intro.active .mascot-main { animation: peek .9s cubic-bezier(.2,1.5,.4,1) both .7s; }
 @keyframes peek { from { transform: translate(-120px, 80px) rotate(-20deg); opacity: 0; } }
 
 /* Нерпа крупно выглядывает из правого нижнего угла экрана победителя */
 .mascot-win {
-  position: absolute; right: -150px; bottom: calc((1080px - var(--H, 1080px)) / 2 - 250px); width: 560px; z-index: 4;
+  position: absolute; right: -190px; bottom: calc((1080px - var(--H, 1080px)) / 2 - 200px); width: 735px; z-index: 4;
   transform-origin: 70% 100%; transform: rotate(-24deg); filter: drop-shadow(8px 10px 0 rgba(17,17,17,.2));
 }
 #screen-winner.active .mascot-win { animation: peek-in 1s cubic-bezier(.2,1.4,.4,1) both 1s, peek-bob 2.6s ease-in-out infinite 2s; }

@@ -102,9 +102,10 @@ STYLE = '''  <style>
 '''
 
 
-def svg(name, h, *parts, note=''):
+def svg(name, h, *parts, note='', pad=0):
+    # pad — запас по краям (кроме низа), чтобы взмахи ласт не обрезались границей картинки
     body = ''.join(parts)
-    text = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 {h}">\n'
+    text = (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="{-pad} {-pad} {320 + 2 * pad} {h + pad}">\n'
             f'  <!-- Маскот «Новых Бирюзовых» — нерпа. {note} Собрано tools/mascot.py -->\n'
             f'{STYLE}{body}</svg>\n')
     with open(os.path.join(OUT, name), 'w', encoding='utf-8') as f:
@@ -114,5 +115,5 @@ def svg(name, h, *parts, note=''):
 
 # Порядок слоёв: тело → косынка/кепка → ласты (перед телом) → лицо
 svg('mascot-paddle.svg', 540, TAIL_BODY, SCARF_CAP, PADDLE, FACE, note='Гребёт веслом на сапе.')
-svg('mascot-wave.svg', 400, TAIL_BODY, SCARF_CAP, WAVE, FACE, note='Машет на главном экране.')
-svg('mascot-win.svg', 400, TAIL_BODY, SCARF_CAP, WIN, FACE_HAPPY, note='Празднует на финише.')
+svg('mascot-wave.svg', 400, TAIL_BODY, SCARF_CAP, WAVE, FACE, note='Машет на главном экране.', pad=50)
+svg('mascot-win.svg', 400, TAIL_BODY, SCARF_CAP, WIN, FACE_HAPPY, note='Празднует на финише.', pad=50)
