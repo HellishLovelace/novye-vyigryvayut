@@ -14,6 +14,13 @@
 import csv, glob, os, re, sys, unicodedata
 
 EXCLUDE_WEEKLY_WINNERS = False   # True — не включать победителей еженедельных розыгрышей
+EXCLUDE_NO_REGION = True         # не включать без региона (и с регионом не из списка ДФО ниже)
+EXCLUDE_LATIN_NAMES = True       # не включать, если в имени/фамилии нет кириллицы
+
+# Регионы ДФО, как их пишет бот; слева — встречающиеся варианты написания
+REGION_ALIASES = {'владивосток': 'Приморский край'}
+DFO_REGIONS = ['Приморский край', 'Хабаровский край', 'Забайкальский край', 'Сахалинская область', 'Амурская область',
+               'Камчатский край', 'Магаданская область', 'ЕАО', 'Республика Саха (Якутия)', 'Бурятия', 'Чукотский АО']
 
 DATA = os.environ.get('FINAL_DATA') or os.path.join(os.path.dirname(__file__), '..', 'data')
 norm = lambda s: unicodedata.normalize('NFC', str(s or '')).strip()
@@ -72,7 +79,8 @@ def main():
         print('Источник: ВСЕ подписчики из экспорта BotMan (листа «Участники» в data/ нет)')
     h = t[0]
     c_vk, c_fio, c_reg, c_st = col(h, r'vk id'), col(h, r'фио'), col(h, r'регион'), col(h, r'статус')
-    stats = dict(total=len(t) - 1, no_id=0, dup=0, region=0, weekly=0, no_name=0)
+    stats = dict(total=len(t) - 1, no_id=0, dup=0, region=0, weekly=0, no_name=0, no_region=0, latin=0)
+    known = {x.lower(): x for x in DFO_REGIONS}
     seen, out = set(), []
     for r in t[1:]:
         get = lambda i: norm(r[i]) if 0 <= i < len(r) else ''
@@ -80,12 +88,17 @@ def main():
         if not re.fullmatch(r'\d+', vk): stats['no_id'] += 1; continue
         if vk in seen: stats['dup'] += 1; continue
         reg = get(c_reg)
+        reg = REGION_ALIASES.get(reg.lower(), reg)
+        if EXCLUDE_NO_REGION:
+            if reg.lower() not in known: stats['no_region'] += 1; continue
+            reg = known[reg.lower()]
         if active and reg.lower() not in active: stats['region'] += 1; continue
         if EXCLUDE_WEEKLY_WINNERS and re.search('победител', get(c_st), re.I): stats['weekly'] += 1; continue
         seen.add(vk)
         last, first = names.get(vk, ('', ''))
         if not last and not first and get(c_fio):
             p = get(c_fio).split(); last, first = (p + ['', ''])[:2]
+        if EXCLUDE_LATIN_NAMES and not re.search('[А-Яа-яЁё]', last + first): stats['latin'] += 1; continue
         if not last and not first: stats['no_name'] += 1
         out.append([vk, last, first, reg, '', 'https://vk.com/id' + vk])
 
@@ -98,7 +111,8 @@ def main():
     by_reg = {}
     for r in out: by_reg[r[3]] = by_reg.get(r[3], 0) + 1
     print(f"Строк в «Участниках»: {stats['total']}")
-    print(f"Отсеяно: без VK ID {stats['no_id']}, дубли {stats['dup']}, не тот регион {stats['region']}, еженедельные победители {stats['weekly']}")
+    print(f"Отсеяно: без VK ID {stats['no_id']}, дубли {stats['dup']}, без региона/неизвестный регион {stats['no_region']}, "
+          f"не активный регион {stats['region']}, латиница/без имени {stats['latin']}, еженедельные победители {stats['weekly']}")
     print(f"В финале: {len(out)}, без имени (будут «VK id…»): {stats['no_name']}")
     print('Активные регионы: ' + (', '.join(active) if active else 'все'))
     for k, v in sorted(by_reg.items(), key=lambda x: -x[1]): print(f'  {k}: {v}')
