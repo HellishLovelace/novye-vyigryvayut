@@ -98,7 +98,7 @@
     return reel.slots[k];
   }
   function fill(node, p) {
-    node.img.src = Data.avatar(p);
+    Data.setPhoto(node.img, p);
     node.name.textContent = p.surname + ' ' + p.name;
     node.town.textContent = p.town || '';
   }
@@ -243,7 +243,7 @@
   // ---------- 3. Победитель ----------
   function showWinner(w) {
     current = { time: new Date().toISOString(), total: participants.length, winner: w, reserves: [] };
-    $('w-photo').src = Data.avatar(w);
+    Data.setPhoto($('w-photo'), w);
     $('w-surname').textContent = w.surname;
     $('w-name').textContent = w.name;
     $('w-town').textContent = w.town || '—';
@@ -276,7 +276,7 @@
   // ---------- 4–5. Запасные ----------
   function reserveCell(p, idx) {
     return '<div class="r-num">' + (idx + 1) + '</div>' +
-      (p ? '<img src="' + Data.avatar(p) + '" alt=""><div class="r-text"><div class="r-name"></div><div class="r-town"></div></div>'
+      (p ? '<img alt=""><div class="r-text"><div class="r-name"></div><div class="r-town"></div></div>'
          : '<div class="r-empty">?</div>');
   }
   function renderReserveGrid(list, spinning) {
@@ -287,7 +287,7 @@
       var p = list && list[i], d = document.createElement('div');
       d.className = 'r-cell' + (p && !spinning ? ' show' : '');
       d.innerHTML = reserveCell(p, i);
-      if (p) { d.querySelector('.r-name').textContent = p.surname + ' ' + p.name; d.querySelector('.r-town').textContent = p.town || ''; }
+      if (p) { Data.setPhoto(d.querySelector('img'), p); d.querySelector('.r-name').textContent = p.surname + ' ' + p.name; d.querySelector('.r-town').textContent = p.town || ''; }
       g.appendChild(d);
     }
   }

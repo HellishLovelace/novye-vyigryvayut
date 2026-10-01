@@ -133,5 +133,11 @@
     return (cache[p.id] = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg));
   }
 
-  window.Data = { randInt: randInt, shuffle: shuffle, demo: demo, fromCSV: fromCSV, fromList: fromList, avatar: avatar };
+  // Фото из VK может не загрузиться (устарела ссылка, закрыт профиль) — тогда аватар с инициалами
+  function setPhoto(img, p) {
+    img.onerror = function () { img.onerror = null; img.src = avatar({ id: p.id, surname: p.surname, name: p.name, photo: '' }); };
+    img.src = avatar(p);
+  }
+
+  window.Data = { randInt: randInt, shuffle: shuffle, demo: demo, fromCSV: fromCSV, fromList: fromList, avatar: avatar, setPhoto: setPhoto };
 })();
