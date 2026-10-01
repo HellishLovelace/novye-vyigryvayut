@@ -4,7 +4,8 @@
 
 Берёт из папки data/ (она вне git — там персональные данные):
   * botman-export.xlsx      — экспорт подписчиков BotMan (Id = VK ID, First Name, Last Name)
-  * участники.csv           — лист «Участники» из Google Таблицы (Файл → Скачать → CSV)
+  * участники.csv           — лист «Участники» из Google Таблицы (Файл → Скачать → CSV).
+                              Если его нет — в финал идут ВСЕ подписчики из экспорта (регион из колонки «Регион»).
   * регионы.csv (необяз.)   — лист «Регионы»; если есть и не пуст — в финал идут только эти регионы
 Пишет data/final.csv — его загружает сайт (H → «CSV-файл»).
 
@@ -43,7 +44,6 @@ def main():
     parts = find(r'участник.*\.csv$')
     regions_f = find(r'регион.*\.csv$')
     if not export: sys.exit('Нет экспорта BotMan в data/ (botman-export.xlsx)')
-    if not parts: sys.exit('Нет листа «Участники» в data/ (участники.csv)')
 
     # Имена из экспорта BotMan: VK ID → (фамилия, имя)
     import openpyxl, warnings
@@ -51,18 +51,25 @@ def main():
     rows = list(openpyxl.load_workbook(export, read_only=True).worksheets[0].iter_rows(values_only=True))
     h = rows[0]
     c_id, c_first, c_last = col(h, r'^id$'), col(h, r'^first name$'), col(h, r'^last name$')
-    names = {}
+    c_reg_bm = col(h, r'^регион$')
+    names, bm_rows = {}, []
     for r in rows[1:]:
         vk = re.sub(r'\D', '', norm(r[c_id]))
         if vk: names[vk] = (norm(r[c_last]), norm(r[c_first]))
+        bm_rows.append([vk, '', norm(r[c_reg_bm]) if c_reg_bm >= 0 else '', ''])
 
     # Активные регионы
     active = []
     if regions_f:
         active = [norm(r[0]).lower() for r in read_csv(regions_f)[1:] if r and norm(r[0])]
 
-    # Участники из таблицы — официальный список
-    t = read_csv(parts)
+    # Участники из таблицы — официальный список; без него — все подписчики из экспорта
+    if parts:
+        t = read_csv(parts)
+        print('Источник: лист «Участники» + имена из экспорта BotMan')
+    else:
+        t = [['VK ID', 'ФИО', 'Регион', 'Статус']] + bm_rows
+        print('Источник: ВСЕ подписчики из экспорта BotMan (листа «Участники» в data/ нет)')
     h = t[0]
     c_vk, c_fio, c_reg, c_st = col(h, r'vk id'), col(h, r'фио'), col(h, r'регион'), col(h, r'статус')
     stats = dict(total=len(t) - 1, no_id=0, dup=0, region=0, weekly=0, no_name=0)

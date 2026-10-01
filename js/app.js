@@ -246,7 +246,8 @@
     Data.setPhoto($('w-photo'), w);
     $('w-surname').textContent = w.surname;
     $('w-name').textContent = w.name;
-    $('w-town').textContent = w.town || '—';
+    $('w-town').textContent = w.town || '';
+    $('w-town').parentNode.style.display = w.town ? '' : 'none'; // регион не указан — плашку не показываем
     show('winner');
     fitText($('w-surname'), 110); fitText($('w-name'), 80);
     launchKites();
@@ -381,11 +382,24 @@
         source = f.name;
         store.set('participants', participants); store.set('source', source);
         syncPanel();
-        alert('Загружено участников: ' + participants.length);
-      } catch (err) { alert('Ошибка: ' + err.message); }
+        setStatus('Загружено участников: ' + participants.length);
+      } catch (err) { setStatus('Ошибка: ' + err.message, true); }
       e.target.value = '';
     };
     r.readAsText(f, 'utf-8');
+  });
+  // Список, собранный tools/build_final.py (работает, когда сайт открыт через локальный сервер)
+  $('p-local').addEventListener('click', function () {
+    fetch('data/final.csv', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('нет файла data/final.csv'); return r.text(); })
+      .then(function (t) {
+        participants = Data.fromCSV(t);
+        source = 'data/final.csv';
+        store.set('participants', participants); store.set('source', source);
+        syncPanel();
+        setStatus('Загружено участников: ' + participants.length);
+      })
+      .catch(function (err) { setStatus('Ошибка: ' + err.message + '. Если сайт открыт двойным кликом по файлу — загрузите CSV кнопкой выше.', true); });
   });
   // Загрузка из Google Таблицы через веб-приложение Apps Script (apps-script/final-export.gs)
   $('p-url').value = store.get('sheetUrl', '');
