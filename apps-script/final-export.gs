@@ -2,40 +2,37 @@
 // ВЫГРУЗКА УЧАСТНИКОВ ДЛЯ ФИНАЛЬНОГО РОЗЫГРЫША (сайт-трансляция)
 // Добавьте этот файл в тот же проект Apps Script, что и основной скрипт.
 //
-// Зачем: в листе «Участники» колонка ФИО пока пустая, а для эфира
-// нужны фамилия, имя и фото. Функция берёт VK ID участников,
-// запрашивает у VK имя/фамилию/фото и пишет лист «Финал».
-// Сайт забирает лист «Финал» сам через doGet (см. ниже) — либо лист
-// можно скачать как CSV и загрузить через пульт ведущего (клавиша H).
+// Зачем: в листе «Участники» колонка ФИО пустая, а для эфира нужны
+// фамилия, имя и фото. Их отдаёт BotMan: GET /public/api/v1/users/{BotMan ID}
+// → firstName, lastName, profilePicUrl (данные профиля VK подписчика).
+// Ключ API берётся из «Настройки»!B2 — тот же, что у основного скрипта.
+// Результат пишется в лист «Финал»; сайт забирает его через doGet (ниже)
+// или лист можно скачать как CSV и загрузить через пульт ведущего (клавиша H).
 //
 // Подготовка (один раз):
-//   1. Создать сервисный ключ VK: vk.com/apps?act=manage → своё приложение →
-//      Настройки → «Сервисный ключ доступа».
-//   2. Apps Script → Настройки проекта → Свойства скрипта:
-//        VK_SERVICE_TOKEN = <сервисный ключ VK>
-//        FINAL_KEY        = <любой длинный пароль для сайта>
-//   3. Запустить dryRunFinal (проверка без записи), затем buildFinalSheet.
-//   4. Развернуть → Управление развёртываниями → текущее веб-приложение →
+//   1. Apps Script → Настройки проекта → Свойства скрипта:
+//        FINAL_KEY = <любой длинный пароль для сайта>
+//   2. Запустить dryRunFinal (проверка без записи), затем buildFinalSheet.
+//      Если участников много и скрипт не успел за 5 минут — просто запустить
+//      buildFinalSheet ещё раз: уже полученные имена берутся из листа «Финал».
+//   3. Развернуть → Управление развёртываниями → текущее веб-приложение →
 //      «Изменить» → Версия: «Новая версия» → Развернуть.
 //      Ссылка /exec остаётся прежней, приём данных от BotMan (doPost) не меняется.
-//   5. На сайте: H → вставить ссылку /exec и FINAL_KEY → «Загрузить из таблицы».
+//   4. На сайте: H → вставить ссылку /exec и FINAL_KEY → «Загрузить из таблицы».
 // ============================================================
 
 var SHEET_FINAL = 'Финал';
-var VK_API_VERSION = '5.199';
-var VK_BATCH = 500; // сколько ID в одном запросе users.get
 
 // ---- Правила отбора в финал (поменяйте при необходимости) ----
 var FINAL_ONLY_ACTIVE_REGIONS = true;      // true — только регионы из листа «Регионы» (пустой лист = все)
 var FINAL_EXCLUDE_WEEKLY_WINNERS = false;  // true — не включать тех, кто уже выигрывал еженедельный розыгрыш
-var FINAL_EXCLUDE_DELETED_VK = true;       // true — не включать удалённые/заблокированные страницы VK
 
 // Проверка без записи: сколько человек попадёт в финал и почему остальные отсеяны
 function dryRunFinal() {
   var r = collectFinalPeople(SpreadsheetApp.getActiveSpreadsheet());
   Logger.log('Всего строк в «Участниках»: ' + r.total);
   Logger.log('Отсеяно: без VK ID — ' + r.noId + ', дубли — ' + r.dup + ', не тот регион — ' + r.region + ', еженедельные победители — ' + r.weekly);
-  Logger.log('Попадут в финал: ' + r.people.length);
+  Logger.log('Попадут в финал: ' + r.people.length + ' (из них без BotMan ID — ' + r.noBotman + ': у них не будет имени и фото)');
   var byRegion = {};
   r.people.forEach(function (p) { byRegion[p.region] = (byRegion[p.region] || 0) + 1; });
   Object.keys(byRegion).forEach(function (k) { Logger.log('  ' + k + ': ' + byRegion[k]); });
@@ -44,7 +41,7 @@ function dryRunFinal() {
 function collectFinalPeople(ss) {
   var activeRegions = FINAL_ONLY_ACTIVE_REGIONS ? getActiveRegions(ss).map(function (r) { return r.toLowerCase(); }) : [];
   var rows = ss.getSheetByName(SHEET_PARTICIPANTS).getDataRange().getValues();
-  var res = { people: [], total: rows.length - 1, noId: 0, dup: 0, region: 0, weekly: 0 }, seen = {};
+  var res = { people: [], total: rows.length - 1, noId: 0, dup: 0, region: 0, weekly: 0, noBotman: 0 }, seen = {};
   for (var i = 1; i < rows.length; i++) {
     var vkId = String(rows[i][COL_VK_ID] || '').trim();
     var region = String(rows[i][COL_REGION] || '').trim();
@@ -53,52 +50,83 @@ function collectFinalPeople(ss) {
     if (activeRegions.length && activeRegions.indexOf(region.toLowerCase()) < 0) { res.region++; continue; }
     if (FINAL_EXCLUDE_WEEKLY_WINNERS && /победител/i.test(String(rows[i][COL_STATUS] || ''))) { res.weekly++; continue; }
     seen[vkId] = true;
-    res.people.push({ vkId: vkId, region: region, fio: String(rows[i][COL_NAME] || '').trim() });
+    var botmanId = String(rows[i][COL_BOTMAN_ID] || '').trim();
+    if (!botmanId) res.noBotman++;
+    res.people.push({ vkId: vkId, botmanId: botmanId, region: region, fio: String(rows[i][COL_NAME] || '').trim() });
   }
   return res;
 }
 
 function buildFinalSheet() {
+  var start = new Date().getTime();
   var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var token = PropertiesService.getScriptProperties().getProperty('VK_SERVICE_TOKEN');
-  if (!token) Logger.log('VK_SERVICE_TOKEN не задан — имена возьмём из колонки ФИО, без фото');
-
+  var apiKey = String(ss.getSheetByName(SHEET_SETTINGS).getRange('B2').getValue()).trim();
   var people = collectFinalPeople(ss).people;
   Logger.log('Участников для финала: ' + people.length);
 
-  // Имена и фото из VK пачками
-  var info = {};
-  for (var s = 0; token && s < people.length; s += VK_BATCH) {
-    var ids = people.slice(s, s + VK_BATCH).map(function (p) { return p.vkId; });
-    var resp = UrlFetchApp.fetch('https://api.vk.com/method/users.get', {
-      method: 'post',
-      payload: { user_ids: ids.join(','), fields: 'photo_200', lang: 'ru', access_token: token, v: VK_API_VERSION },
-      muteHttpExceptions: true
+  // Уже полученные имена из прошлого запуска — не запрашиваем повторно
+  var sheet = ss.getSheetByName(SHEET_FINAL) || ss.insertSheet(SHEET_FINAL);
+  var cache = {};
+  sheet.getDataRange().getValues().slice(1).forEach(function (r) {
+    if (r[0] && (r[1] || r[2])) cache[String(r[0])] = { last: String(r[1]), first: String(r[2]), photo: String(r[4] || '') };
+  });
+
+  // Имена и фото из BotMan — пачками параллельно, как метки в основном скрипте
+  var todo = people.filter(function (p) { return p.botmanId && !cache[p.vkId]; });
+  Logger.log('Запрашиваем в BotMan: ' + todo.length + ' (из прошлого запуска уже есть ' + Object.keys(cache).length + ')');
+  var unfinished = 0;
+  for (var s = 0; s < todo.length; s += BOTMAN_BATCH_SIZE) {
+    if (new Date().getTime() - start > MAX_EXECUTION_MS) { unfinished = todo.length - s; break; }
+    var chunk = todo.slice(s, s + BOTMAN_BATCH_SIZE);
+    var retry = [];
+    fetchBotmanUsers(chunk, apiKey).forEach(function (r, i) {
+      if (r.code === 429) retry.push(chunk[i]);
+      else if (r.code === 200) cache[chunk[i].vkId] = r.user;
+      else Logger.log('BotMan user ' + chunk[i].botmanId + ': ' + r.code);
     });
-    var data = JSON.parse(resp.getContentText());
-    if (data.error) throw new Error('VK API: ' + data.error.error_msg);
-    data.response.forEach(function (u) { info[String(u.id)] = u; });
-    Utilities.sleep(350); // лимит VK — 3 запроса в секунду
+    if (retry.length) {
+      Utilities.sleep(BOTMAN_RETRY_PAUSE_MS);
+      fetchBotmanUsers(retry, apiKey).forEach(function (r, i) { if (r.code === 200) cache[retry[i].vkId] = r.user; });
+    }
+    Utilities.sleep(BOTMAN_BATCH_PAUSE_MS);
   }
 
-  var out = [['VK ID', 'Фамилия', 'Имя', 'Населённый пункт', 'Фото', 'Страница VK']], deleted = 0;
+  var out = [['VK ID', 'Фамилия', 'Имя', 'Населённый пункт', 'Фото', 'Страница VK']], noName = 0;
   people.forEach(function (p) {
-    var u = info[p.vkId] || {};
-    if (u.deactivated) { deleted++; if (FINAL_EXCLUDE_DELETED_VK) return; u = {}; } // VK отдаёт имя «DELETED»
-    var surname = u.last_name || '', name = u.first_name || '';
-    if (!surname && p.fio) { var parts = p.fio.split(/\s+/); surname = parts[0] || ''; name = parts[1] || ''; }
-    var photo = (u.photo_200 && u.photo_200.indexOf('camera_') < 0) ? u.photo_200 : ''; // без заглушки VK
-    out.push([p.vkId, surname, name, p.region, photo, 'https://vk.com/id' + p.vkId]);
+    var u = cache[p.vkId] || {}, surname = u.last || '', name = u.first || '';
+    if (!surname && !name && p.fio) { var parts = p.fio.split(/\s+/); surname = parts[0] || ''; name = parts[1] || ''; }
+    if (!surname && !name) noName++;
+    out.push([p.vkId, surname, name, p.region, u.photo || '', 'https://vk.com/id' + p.vkId]);
   });
-  if (deleted) Logger.log('Удалённых/заблокированных страниц VK: ' + deleted + (FINAL_EXCLUDE_DELETED_VK ? ' — исключены' : ''));
 
-  var sheet = ss.getSheetByName(SHEET_FINAL) || ss.insertSheet(SHEET_FINAL);
   sheet.clearContents();
   sheet.getRange(1, 1, out.length, out[0].length).setValues(out);
   sheet.getRange(1, 1, 1, out[0].length).setFontWeight('bold');
   PropertiesService.getScriptProperties().setProperty('FINAL_UPDATED',
     Utilities.formatDate(new Date(), 'Asia/Vladivostok', 'dd.MM.yyyy HH:mm') + ' (Владивосток)');
-  Logger.log('Лист «' + SHEET_FINAL + '» готов: ' + (out.length - 1) + ' участников. Скачайте его как CSV.');
+  Logger.log('Лист «' + SHEET_FINAL + '» готов: ' + (out.length - 1) + ' участников, без имени — ' + noName + '.');
+  if (unfinished) Logger.log('ВНИМАНИЕ: не успели запросить ' + unfinished + ' человек — запустите buildFinalSheet ещё раз.');
+}
+
+// Параллельный запрос пачки пользователей BotMan → [{code, user: {first, last, photo}}]
+function fetchBotmanUsers(list, apiKey) {
+  var requests = list.map(function (p) {
+    return { url: 'https://api.botman.pro/public/api/v1/users/' + encodeURIComponent(p.botmanId),
+             method: 'get', headers: { 'x-api-key': apiKey }, muteHttpExceptions: true };
+  });
+  var responses;
+  try { responses = UrlFetchApp.fetchAll(requests); }
+  catch (e) { Logger.log('Ошибка запроса к BotMan: ' + e); return list.map(function () { return { code: 0 }; }); }
+  return responses.map(function (r) {
+    var code = r.getResponseCode(), user = null;
+    if (code === 200) {
+      try {
+        var u = JSON.parse(r.getContentText());
+        user = { first: String(u.firstName || '').trim(), last: String(u.lastName || '').trim(), photo: String(u.profilePicUrl || '') };
+      } catch (e) { code = -1; }
+    }
+    return { code: code, user: user };
+  });
 }
 
 // ============================================================
