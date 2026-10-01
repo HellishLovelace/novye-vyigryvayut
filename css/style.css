@@ -158,22 +158,30 @@ button { font: inherit; cursor: pointer; border: 0; background: none; color: inh
   position: absolute; left: 0; bottom: 76px; height: 14px; width: 0;
   background: radial-gradient(circle at 7px 7px, #fff 5px, transparent 6px) 0 0 / 22px 14px repeat-x; opacity: .85;
 }
-.rider { position: absolute; left: 0; bottom: 50px; width: 560px; will-change: transform; }
-.rider .board { display: block; width: 560px; filter: drop-shadow(0 8px 0 rgba(17,17,17,.25)); }
-.rider .person { position: absolute; left: 170px; bottom: -51px; width: 230px; transform-origin: 50% 100%; animation: balance 2.4s ease-in-out infinite; filter: drop-shadow(4px 4px 0 rgba(17,17,17,.25)); }
+.rider { position: absolute; left: 0; bottom: 50px; width: 460px; will-change: transform; }
+.rider .board { display: block; width: 460px; filter: drop-shadow(0 8px 0 rgba(17,17,17,.25)); }
+.rider .person { position: absolute; left: 115px; bottom: -51px; width: 230px; transform-origin: 50% 100%; animation: balance 2.4s ease-in-out infinite; filter: drop-shadow(4px 4px 0 rgba(17,17,17,.25)); }
 @keyframes balance { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
-.found .rider .person { animation: cheer .5s ease-in-out 4; }
+.landed .jumper { animation: cheer .5s ease-in-out 4; }
 @keyframes cheer { 50% { transform: translateY(-26px) rotate(0); } }
-.sup-label { position: absolute; left: 390px; bottom: 230px; transform: rotate(-3deg); font-size: 30px; white-space: nowrap; }
+.sup-label { position: absolute; left: 330px; bottom: 240px; transform: rotate(-3deg); font-size: 30px; white-space: nowrap; }
 .found .sup-label { background: var(--red); color: #fff; }
 .drop { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; pointer-events: none; animation: splash .8s ease-out forwards; }
 @keyframes splash { to { transform: translate(var(--dx), var(--dy)) scale(.2); opacity: 0; } }
-.finish { position: absolute; right: 120px; bottom: 60px; width: 120px; height: 200px; }
+.finish { position: absolute; right: 80px; bottom: 50px; width: 260px; height: 230px; }
 .finish svg { width: 100%; height: 100%; overflow: visible; }
 .finish .flag { transform-origin: 24px 42px; animation: flag 1.2s ease-in-out infinite alternate; }
 .found .finish .flag { animation-duration: .25s; }
 @keyframes flag { to { transform: skewY(-8deg) scaleX(.92); } }
-.finish .pill { position: absolute; left: 50%; top: -58px; transform: translateX(-40%) rotate(3deg); font-size: 24px; }
+.finish .pill { position: absolute; left: -120px; top: 30px; transform: rotate(-3deg); font-size: 24px; }
+.landed .finish .pill { background: var(--red); color: #fff; }
+.jumped .sup-label { opacity: 0; }
+/* Нерпа прыгает с доски на причал финиша */
+.paddle-rest { position: absolute; left: 40px; bottom: 58px; width: 280px; opacity: 0; transition: opacity .2s; }
+.jumped .paddle-rest { opacity: 1; }
+.jumped .rider .person { visibility: hidden; }
+.jumper { position: absolute; width: 230px; display: none; transform-origin: 50% 100%; filter: drop-shadow(4px 4px 0 rgba(17,17,17,.25)); }
+.jumped .jumper { display: block; }
 .gulls { position: absolute; left: 0; right: 0; bottom: 150px; height: 100px; }
 .gull { position: absolute; width: 56px; fill: none; stroke: var(--ink); stroke-width: 4; stroke-linecap: round; animation: glide 26s linear infinite, flap .5s ease-in-out infinite alternate; }
 .g1 { bottom: 40px; animation-delay: -4s, 0s; }
@@ -267,3 +275,8 @@ button { font: inherit; cursor: pointer; border: 0; background: none; color: inh
 #panel .keys { font-size: 12px; color: #5d6e73; line-height: 1.6; }
 #p-log { margin-top: 12px; font-size: 12px; line-height: 1.5; border-top: 1px solid #e3eaeb; padding-top: 10px; }
 #p-log > div { margin-bottom: 6px; }
+
+/* Нерпа рядом с суммой на главном экране */
+.mascot-main { position: absolute; left: calc(50% - 820px); top: 420px; width: 280px; z-index: 5; filter: drop-shadow(6px 8px 0 rgba(17,17,17,.2)); }
+#screen-intro.active .mascot-main { animation: peek .9s cubic-bezier(.2,1.5,.4,1) both .7s; }
+@keyframes peek { from { transform: translate(-120px, 80px) rotate(-20deg); opacity: 0; } }

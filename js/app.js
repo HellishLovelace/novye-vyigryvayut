@@ -115,19 +115,20 @@
       nd.el.style.transform = 'translateY(' + (mid - ITEM_H / 2) + 'px) translateZ(' + (-DRUM_R) + 'px) rotateX(' + (-a) + 'rad) translateZ(' + DRUM_R + 'px)';
       nd.el.style.opacity = Math.max(0, Math.cos(a) * 1.25 - 0.2).toFixed(3);
       nd.el.style.filter = blur > 0.5 ? 'blur(' + blur.toFixed(1) + 'px)' : 'none';
-      nd.el.classList.toggle('hit', reel.state === 'done' && k === reel.stop.target);
+      nd.el.classList.toggle('hit', reel.state === 'done' && reel.landed && k === reel.stop.target);
     });
     var cur = Math.round(reel.p);
     if (cur !== reel.lastSlot) { reel.lastSlot = cur; tick(); }
   }
 
   // Сап-борд: едет от левого края к флажку «Финиш», качается на волне, за ним брызги
-  var supProg = 0, lastDrop = 0;
+  var supProg = 0, supX = 0, lastDrop = 0;
   function setSup(prog, label) {
     supProg = prog;
-    var W = $('sea').clientWidth, x0 = 60, x1 = W - 830; // нос доски останавливается перед флажком «Финиш»
+    var W = $('sea').clientWidth, x0 = 60, x1 = W - 860; // доска останавливается перед причалом — дальше нерпа прыгает сама
     var x = x0 + prog * (x1 - x0), t = performance.now() / 1000;
     var bob = Math.sin(t * 3.2) * 7, tilt = Math.cos(t * 3.2) * 3 - (reel.v > 2 ? 2 : 0);
+    supX = x;
     $('sup-rider').style.transform = 'translate(' + x + 'px,' + bob + 'px) rotate(' + tilt + 'deg)';
     $('sup-trail').style.width = Math.max(0, x + 20) + 'px';
     $('sup-label').textContent = label || (Math.floor(prog * 100) + '%');
@@ -162,7 +163,7 @@
       setSup(s.prog0 + (1 - s.prog0) * k, 'Ищем… ' + Math.floor((s.prog0 + (1 - s.prog0) * k) * 100) + '%');
       if (k >= 1) { reel.state = 'done'; reel.v = 0; reel.p = s.target; onReelDone(); }
     }
-    if (reel.state === 'done') setSup(1, 'Найден!');
+    if (reel.state === 'done') setSup(1, reel.landed ? 'Найден!' : 'Ищем… 100%');
     renderReel();
     if (reel.state !== 'idle' && screen === 'draw') requestAnimationFrame(reelFrame); // доска качается и после остановки
   }
@@ -174,7 +175,9 @@
     reel.state = 'spin'; reel.v = 0; reel.slots = {}; reel.p = 0; reel.winner = null;
     reelNodes.forEach(function (n) { n.slot = null; });
     $('btn-stop').disabled = false;
-    $('screen-draw').classList.remove('found');
+    $('screen-draw').classList.remove('found', 'jumped', 'landed');
+    reel.landed = false;
+    $('jumper').getAnimations().forEach(function (an) { an.cancel(); });
     $('screen-draw').classList.add('spinning');
     $('draw-heading').textContent = 'Бот ищет победителя…';
     show('draw');
@@ -200,7 +203,33 @@
     reel.state = 'stopping';
   }
 
+  // Финиш поиска наступает, когда до причала добирается нерпа: прыжок с доски по дуге
+  function jumpToFinish(done) {
+    var sd = $('screen-draw'), jp = $('jumper'), W = $('sea').clientWidth;
+    var x0 = supX + 115, y0 = 100;          // ноги нерпы на палубе
+    var x1 = W - 295, y1 = 106;             // ноги на причале, правее флагштока
+    jp.style.left = x0 + 'px'; jp.style.bottom = y0 + 'px';
+    sd.classList.add('jumped');
+    splash(supX + 220, 70, 1); splash(supX + 260, 70, 1);
+    var a = audio();
+    if (a) { var o = a.createOscillator(), g = a.createGain(), t = a.currentTime;
+      o.frequency.setValueAtTime(300, t); o.frequency.exponentialRampToValueAtTime(900, t + 0.5);
+      g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
+      o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + 0.65); }
+    var frames = [];
+    for (var i = 0; i <= 16; i++) {
+      var k = i / 16, h = 4 * k * (1 - k) * 230;
+      frames.push({ transform: 'translate(' + (x1 - x0) * k + 'px,' + -((y1 - y0) * k + h) + 'px) rotate(' + (-16 * Math.sin(Math.PI * k)) + 'deg)' });
+    }
+    var anim = jp.animate(frames, { duration: 950, fill: 'forwards' });
+    anim.onfinish = function () { reel.landed = true; sd.classList.add('landed'); done(); };
+  }
+
   function onReelDone() {
+    jumpToFinish(onLanded);
+  }
+
+  function onLanded() {
     var sd = $('screen-draw');
     sd.classList.remove('spinning'); sd.classList.add('found');
     $('draw-heading').textContent = 'Победитель найден!';
@@ -299,7 +328,7 @@
     })();
   }
 
-  function goHome() { reel.state = 'idle'; $('screen-draw').classList.remove('spinning', 'found'); Confetti.stop(); show('intro'); }
+  function goHome() { reel.state = 'idle'; $('screen-draw').classList.remove('spinning', 'found', 'jumped', 'landed'); Confetti.stop(); show('intro'); }
 
   // ---------- Протокол ----------
   function saveHistory() {
