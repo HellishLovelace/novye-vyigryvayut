@@ -78,7 +78,7 @@ function buildFinalSheet() {
   // Имена и фото из BotMan — по одному запросу с подстраиваемой паузой
   var todo = people.filter(function (p) { return p.botmanId && !cache[p.vkId]; });
   Logger.log('Запрашиваем в BotMan: ' + todo.length + ' (из прошлого запуска уже есть ' + Object.keys(cache).length + ')');
-  var unfinished = 0, failed = 0, notFound = 0, throttled = 0, tries = {};
+  var unfinished = 0, failed = 0, notFound = 0, throttled = 0, tries = {}, got = 0, lastErr = '';
   var delay = FINAL_DELAY_MS, backoff = 2000, okStreak = 0, i = 0;
   while (i < todo.length) {
     var elapsed = new Date().getTime() - start;
@@ -86,7 +86,7 @@ function buildFinalSheet() {
     var p = todo[i], r = fetchBotmanUser(p.botmanId, apiKey);
     if (r.code === 429 || r.code === 0) {
       // лимит BotMan или сбой сети: ждём и повторяем того же человека, дальше идём медленнее
-      throttled++; okStreak = 0;
+      throttled++; okStreak = 0; lastErr = (r.code || '') + ' ' + (r.body || r.error || '');
       tries[p.botmanId] = (tries[p.botmanId] || 0) + 1;
       if (tries[p.botmanId] > 6) { failed++; i++; Logger.log('BotMan user ' + p.botmanId + ': ' + (r.code || r.error)); continue; }
       var wait = Math.min(Math.max(backoff, r.retryAfter || 0), 60000);
@@ -97,7 +97,7 @@ function buildFinalSheet() {
       continue;
     }
     backoff = 2000;
-    if (r.code === 200) cache[p.vkId] = r.user;
+    if (r.code === 200) { cache[p.vkId] = r.user; got++; }
     else if (r.code === 404) notFound++;                 // подписчика нет в BotMan — будет «VK id…»
     else { failed++; if (failed <= 5) Logger.log('BotMan user ' + p.botmanId + ': ' + r.code); }
     i++;
@@ -123,9 +123,38 @@ function buildFinalSheet() {
   Logger.log('Лист «' + SHEET_FINAL + '» готов: ' + (out.length - 1) + ' участников, без имени — ' + noName + '.');
   if (notFound) Logger.log('Нет в BotMan: ' + notFound + ' — будут показаны как «VK id…».');
   if (failed) Logger.log('Не удалось получить: ' + failed + ' — при следующем запуске buildFinalSheet дозапросятся.');
+  if (unfinished && todo.length && got === 0) {
+    // ни одного успешного ответа — BotMan не пускает совсем, перезапуск только продлит блокировку
+    scheduleFinalContinue(false);
+    Logger.log('СТОП: BotMan не отдал ни одного пользователя. Последний ответ: ' + lastErr);
+    Logger.log('Автопродолжение отключено. Запустите diagnoseBotman и пришлите журнал.');
+    return;
+  }
   scheduleFinalContinue(unfinished > 0);
   if (unfinished) Logger.log('Не успели за 5 минут: осталось ' + unfinished + '. Продолжение запустится само через минуту — смотрите «Выполнения».');
   else Logger.log('Готово.');
+}
+
+// Снять запланированное автопродолжение buildFinalSheet
+function stopFinalContinue() {
+  scheduleFinalContinue(false);
+  Logger.log('Автопродолжение buildFinalSheet снято.');
+}
+
+// Один запрос к BotMan: код, заголовки и текст ответа — чтобы понять, что за ограничение
+function diagnoseBotman() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var apiKey = String(ss.getSheetByName(SHEET_SETTINGS).getRange('B2').getValue()).trim();
+  var p = collectFinalPeople(ss).people.filter(function (x) { return x.botmanId; })[0];
+  if (!p) { Logger.log('Нет участников с BotMan ID'); return; }
+  var r = UrlFetchApp.fetch('https://api.botman.pro/public/api/v1/users/' + encodeURIComponent(p.botmanId),
+    { method: 'get', headers: { 'x-api-key': apiKey }, muteHttpExceptions: true });
+  Logger.log('Запрос users/' + p.botmanId + ' → код ' + r.getResponseCode());
+  Logger.log('Заголовки: ' + JSON.stringify(r.getHeaders()));
+  Logger.log('Ответ: ' + String(r.getContentText()).substring(0, 1000));
+  var t = UrlFetchApp.fetch('https://api.botman.pro/public/api/v1/tags',
+    { method: 'get', headers: { 'x-api-key': apiKey }, muteHttpExceptions: true });
+  Logger.log('Для сравнения GET /tags → код ' + t.getResponseCode() + ': ' + String(t.getContentText()).substring(0, 200));
 }
 
 // Разовый триггер «продолжить через минуту». Трогает только триггеры buildFinalSheet — еженедельный runRaffle не задевает.
@@ -144,6 +173,7 @@ function fetchBotmanUser(botmanId, apiKey) {
       { method: 'get', headers: { 'x-api-key': apiKey }, muteHttpExceptions: true });
   } catch (e) { return { code: 0, error: String(e) }; }   // «Address unavailable» и т.п.
   var code = r.getResponseCode(), res = { code: code, user: null };
+  if (code !== 200) res.body = String(r.getContentText() || '').substring(0, 300);
   if (code === 429) {
     var h = r.getHeaders(), ra = Number(h['Retry-After'] || h['retry-after'] || 0);
     if (ra) res.retryAfter = ra * 1000;
