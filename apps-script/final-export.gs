@@ -13,8 +13,8 @@
 //   1. Apps Script → Настройки проекта → Свойства скрипта:
 //        FINAL_KEY = <любой длинный пароль для сайта>
 //   2. Запустить dryRunFinal (проверка без записи), затем buildFinalSheet.
-//      Если участников много и скрипт не успел за 5 минут — просто запустить
-//      buildFinalSheet ещё раз: уже полученные имена берутся из листа «Финал».
+//      Если за 5 минут скрипт не успел, он сам перезапустится через минуту
+//      (разовый триггер) и продолжит: уже полученные имена берутся из листа «Финал».
 //   3. Развернуть → Управление развёртываниями → текущее веб-приложение →
 //      «Изменить» → Версия: «Новая версия» → Развернуть.
 //      Ссылка /exec остаётся прежней, приём данных от BotMan (doPost) не меняется.
@@ -27,9 +27,9 @@ var SHEET_FINAL = 'Финал';
 var FINAL_ONLY_ACTIVE_REGIONS = true;      // true — только регионы из листа «Регионы» (пустой лист = все)
 var FINAL_EXCLUDE_WEEKLY_WINNERS = false;  // true — не включать тех, кто уже выигрывал еженедельный розыгрыш
 
-// Запросы к BotMan: пачки поменьше, чем у меток — на 2000+ запросов UrlFetch иногда отвечает «Address unavailable»
-var FINAL_BATCH_SIZE = 10;
-var FINAL_BATCH_PAUSE_MS = 500;
+// Запросы к BotMan идут по одному: BotMan ограничивает частоту (429), а лимит нигде не описан.
+// Пауза между запросами подстраивается сама: при 429 растёт, при успешных ответах уменьшается.
+var FINAL_DELAY_MS = 300;
 
 // Проверка без записи: сколько человек попадёт в финал и почему остальные отсеяны
 function dryRunFinal() {
@@ -75,29 +75,37 @@ function buildFinalSheet() {
     if (r[0] && (r[1] || r[2])) cache[String(r[0])] = { last: String(r[1]), first: String(r[2]), photo: String(r[4] || '') };
   });
 
-  // Имена и фото из BotMan — пачками параллельно, как метки в основном скрипте
+  // Имена и фото из BotMan — по одному запросу с подстраиваемой паузой
   var todo = people.filter(function (p) { return p.botmanId && !cache[p.vkId]; });
   Logger.log('Запрашиваем в BotMan: ' + todo.length + ' (из прошлого запуска уже есть ' + Object.keys(cache).length + ')');
-  var unfinished = 0, failed = 0, notFound = 0;
-  for (var s = 0; s < todo.length; s += FINAL_BATCH_SIZE) {
-    if (new Date().getTime() - start > MAX_EXECUTION_MS) { unfinished = todo.length - s; break; }
-    var chunk = todo.slice(s, s + FINAL_BATCH_SIZE);
-    var retry = [];
-    fetchBotmanUsers(chunk, apiKey).forEach(function (r, i) {
-      if (r.code === 200) cache[chunk[i].vkId] = r.user;
-      else if (r.code === 404) notFound++;           // подписчика нет в BotMan — будет «VK id…»
-      else retry.push(chunk[i]);                     // 429, сетевой сбой и т.п. — повторим
-    });
-    if (retry.length) {
-      Utilities.sleep(BOTMAN_RETRY_PAUSE_MS);
-      fetchBotmanUsers(retry, apiKey).forEach(function (r, i) {
-        if (r.code === 200) cache[retry[i].vkId] = r.user;
-        else { failed++; if (failed <= 5) Logger.log('BotMan user ' + retry[i].botmanId + ': ' + (r.code || r.error)); }
-      });
+  var unfinished = 0, failed = 0, notFound = 0, throttled = 0, tries = {};
+  var delay = FINAL_DELAY_MS, backoff = 2000, okStreak = 0, i = 0;
+  while (i < todo.length) {
+    var elapsed = new Date().getTime() - start;
+    if (elapsed > MAX_EXECUTION_MS) { unfinished = todo.length - i; break; }
+    var p = todo[i], r = fetchBotmanUser(p.botmanId, apiKey);
+    if (r.code === 429 || r.code === 0) {
+      // лимит BotMan или сбой сети: ждём и повторяем того же человека, дальше идём медленнее
+      throttled++; okStreak = 0;
+      tries[p.botmanId] = (tries[p.botmanId] || 0) + 1;
+      if (tries[p.botmanId] > 6) { failed++; i++; Logger.log('BotMan user ' + p.botmanId + ': ' + (r.code || r.error)); continue; }
+      var wait = Math.min(Math.max(backoff, r.retryAfter || 0), 60000);
+      if (elapsed + wait > MAX_EXECUTION_MS) { unfinished = todo.length - i; break; }
+      Utilities.sleep(wait);
+      backoff = Math.min(backoff * 2, 60000);
+      delay = Math.min(Math.round(delay * 1.5) + 100, 5000);
+      continue;
     }
-    if ((s / FINAL_BATCH_SIZE) % 20 === 19) Logger.log('…получено ' + Math.min(s + FINAL_BATCH_SIZE, todo.length) + ' из ' + todo.length);
-    Utilities.sleep(FINAL_BATCH_PAUSE_MS);
+    backoff = 2000;
+    if (r.code === 200) cache[p.vkId] = r.user;
+    else if (r.code === 404) notFound++;                 // подписчика нет в BotMan — будет «VK id…»
+    else { failed++; if (failed <= 5) Logger.log('BotMan user ' + p.botmanId + ': ' + r.code); }
+    i++;
+    if (++okStreak >= 20 && delay > 100) { delay = Math.round(delay * 0.85); okStreak = 0; }
+    if (i % 200 === 0) Logger.log('…обработано ' + i + ' из ' + todo.length + ', пауза между запросами ' + delay + ' мс');
+    Utilities.sleep(delay);
   }
+  if (throttled) Logger.log('BotMan просил притормозить (429/сбой) ' + throttled + ' раз, итоговая пауза ' + delay + ' мс');
 
   var out = [['VK ID', 'Фамилия', 'Имя', 'Населённый пункт', 'Фото', 'Страница VK']], noName = 0;
   people.forEach(function (p) {
@@ -114,38 +122,39 @@ function buildFinalSheet() {
     Utilities.formatDate(new Date(), 'Asia/Vladivostok', 'dd.MM.yyyy HH:mm') + ' (Владивосток)');
   Logger.log('Лист «' + SHEET_FINAL + '» готов: ' + (out.length - 1) + ' участников, без имени — ' + noName + '.');
   if (notFound) Logger.log('Нет в BotMan: ' + notFound + ' — будут показаны как «VK id…».');
-  if (failed || unfinished) Logger.log('ВНИМАНИЕ: не получено ' + (failed + unfinished) + ' человек (сбои сети / не хватило времени) — запустите buildFinalSheet ещё раз, дозапросятся только они.');
+  if (failed) Logger.log('Не удалось получить: ' + failed + ' — при следующем запуске buildFinalSheet дозапросятся.');
+  scheduleFinalContinue(unfinished > 0);
+  if (unfinished) Logger.log('Не успели за 5 минут: осталось ' + unfinished + '. Продолжение запустится само через минуту — смотрите «Выполнения».');
+  else Logger.log('Готово.');
 }
 
-// Пачка пользователей BotMan → [{code, user: {first, last, photo}, error}]
-// fetchAll падает целиком, если упал хоть один запрос («Address unavailable») —
-// тогда пауза и повтор, а если снова сбой — по одному, чтобы не терять всю пачку.
-function fetchBotmanUsers(list, apiKey) {
-  var requests = list.map(function (p) {
-    return { url: 'https://api.botman.pro/public/api/v1/users/' + encodeURIComponent(p.botmanId),
-             method: 'get', headers: { 'x-api-key': apiKey }, muteHttpExceptions: true };
+// Разовый триггер «продолжить через минуту». Трогает только триггеры buildFinalSheet — еженедельный runRaffle не задевает.
+function scheduleFinalContinue(on) {
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'buildFinalSheet') ScriptApp.deleteTrigger(t);
   });
-  var responses = null;
-  for (var attempt = 0; attempt < 2 && !responses; attempt++) {
-    try { responses = UrlFetchApp.fetchAll(requests); }
-    catch (e) { Utilities.sleep(2000); }
+  if (on) ScriptApp.newTrigger('buildFinalSheet').timeBased().after(60 * 1000).create();
+}
+
+// Один пользователь BotMan → {code, user: {first, last, photo}, retryAfter (мс), error}
+function fetchBotmanUser(botmanId, apiKey) {
+  var r;
+  try {
+    r = UrlFetchApp.fetch('https://api.botman.pro/public/api/v1/users/' + encodeURIComponent(botmanId),
+      { method: 'get', headers: { 'x-api-key': apiKey }, muteHttpExceptions: true });
+  } catch (e) { return { code: 0, error: String(e) }; }   // «Address unavailable» и т.п.
+  var code = r.getResponseCode(), res = { code: code, user: null };
+  if (code === 429) {
+    var h = r.getHeaders(), ra = Number(h['Retry-After'] || h['retry-after'] || 0);
+    if (ra) res.retryAfter = ra * 1000;
   }
-  if (!responses) {
-    responses = requests.map(function (req) {
-      try { return UrlFetchApp.fetch(req.url, req); } catch (e) { return { error: String(e) }; }
-    });
+  if (code === 200) {
+    try {
+      var u = JSON.parse(r.getContentText());
+      res.user = { first: String(u.firstName || '').trim(), last: String(u.lastName || '').trim(), photo: String(u.profilePicUrl || '') };
+    } catch (e) { res.code = -1; }
   }
-  return responses.map(function (r) {
-    if (r.error) return { code: 0, error: r.error };
-    var code = r.getResponseCode(), user = null;
-    if (code === 200) {
-      try {
-        var u = JSON.parse(r.getContentText());
-        user = { first: String(u.firstName || '').trim(), last: String(u.lastName || '').trim(), photo: String(u.profilePicUrl || '') };
-      } catch (e) { code = -1; }
-    }
-    return { code: code, user: user };
-  });
+  return res;
 }
 
 // ============================================================
