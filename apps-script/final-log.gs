@@ -54,7 +54,10 @@ function handleFinalLog(data) {
       return [drawId, when, x.role, x.place, vk, vk ? 'https://vk.com/id' + vk : '',
               x.surname || '', x.name || '', x.region || '', data.total || ''];
     });
-    sheet.getRange(sheet.getLastRow() + 1, 1, out.length, out[0].length).setValues(out);
+    var first = sheet.getLastRow() + 1;
+    sheet.getRange(first, 1, out.length, 1).setNumberFormat('@');   // ID розыгрыша — текст, иначе Таблица сделает из него дату
+    sheet.getRange(first, 5, out.length, 1).setNumberFormat('@');   // VK ID — тоже текст
+    sheet.getRange(first, 1, out.length, out[0].length).setValues(out);
     return jsonResponse({ status: 'ok', written: out.length });
   } finally {
     lock.releaseLock();
