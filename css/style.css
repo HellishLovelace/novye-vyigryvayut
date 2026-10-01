@@ -273,7 +273,7 @@ button { font: inherit; cursor: pointer; border: 0; background: none; color: inh
 #panel .row button { background: var(--tif-d); color: #fff; padding: 8px 12px; border-radius: 8px; font-weight: 700; }
 #panel .row button:disabled { opacity: .5; }
 #p-status { display: block; color: #5d6e73; }
-#p-status.err { color: var(--red); }
+#p-status.err, #p-list-status.err, #p-source.err { color: var(--red); font-weight: 700; }
 #panel .keys { font-size: 12px; color: #5d6e73; line-height: 1.6; }
 #p-log { margin-top: 12px; font-size: 12px; line-height: 1.5; border-top: 1px solid #e3eaeb; padding-top: 10px; }
 #p-log > div { margin-bottom: 6px; }

@@ -11,7 +11,10 @@
   };
   var settings = { auto: store.get('auto', 10), sound: store.get('sound', true), exclude: store.get('exclude', true) };
   var participants = store.get('participants', null), source = store.get('source', '');
+  // Реальный список не загружен — барабан крутит демо, но «Старт» не запустится, пока демо не выбрано явно
+  var demoAllowed = false;
   if (!participants || !participants.length) { participants = Data.demo(400); source = 'демо'; }
+  function isDemo() { return source === 'демо'; }
   var history = store.get('history', []);
   var current = null; // { winner, reserves, time }
   var screen = 'intro';
@@ -170,6 +173,12 @@
 
   function startDraw() {
     if (!participants.length) return;
+    if (isDemo() && !demoAllowed) {
+      $('panel').hidden = false; syncPanel();
+      listStatus('Сначала загрузите участников: введите пароль от списка. Для тренировки — кнопка «Демо-участники».', true);
+      $('p-pass').focus();
+      return;
+    }
     Confetti.stop();
     current = null;
     reel.state = 'spin'; reel.v = 0; reel.slots = {}; reel.p = 0; reel.winner = null;
@@ -372,7 +381,8 @@
   // ---------- Пульт ----------
   function syncPanel() {
     $('p-count').textContent = participants.length.toLocaleString('ru-RU');
-    $('p-source').textContent = '(' + source + ')';
+    $('p-source').textContent = '(' + (isDemo() ? 'демо — не для эфира!' : source) + ')';
+    $('p-source').className = isDemo() ? 'err' : '';
     $('p-auto').value = settings.auto;
     $('p-sound').checked = settings.sound;
     $('p-exclude').checked = settings.exclude;
@@ -506,8 +516,19 @@
   $('p-exclude').addEventListener('change', function () { settings.exclude = this.checked; store.set('exclude', settings.exclude); });
   $('p-export').addEventListener('click', exportCSV);
   $('p-demo').addEventListener('click', function () {
-    participants = Data.demo(400); source = 'демо';
+    participants = Data.demo(400); source = 'демо'; demoAllowed = true;
     store.set('participants', null); store.set('source', source); syncPanel();
+    listStatus('Демо-участники: можно тренироваться. Для эфира — загрузите список по паролю.');
+  });
+  $('p-forget').addEventListener('click', function () {
+    if (!confirm('Стереть список участников из этого браузера?')) return;
+    participants = Data.demo(400); source = 'демо'; demoAllowed = false;
+    store.set('participants', null); store.set('source', source); syncPanel();
+    listStatus('Список стёрт из браузера.');
+  });
+  $('p-clear-log').addEventListener('click', function () {
+    if (!confirm('Очистить протокол розыгрышей в этом браузере? (Записи в Google Таблице не трогаются)')) return;
+    history = []; current = null; store.set('history', history); renderLog();
   });
   $('p-reset').addEventListener('click', goHome);
   function togglePanel() { $('panel').hidden = !$('panel').hidden; if (!$('panel').hidden) syncPanel(); }
