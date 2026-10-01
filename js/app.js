@@ -356,7 +356,7 @@
   function renderLog() {
     $('p-log').innerHTML = history.slice().reverse().map(function (h) {
       return '<div><b>' + new Date(h.time).toLocaleString('ru-RU') + '</b> — ' + esc(h.winner.surname + ' ' + h.winner.name) +
-        ' (' + esc(h.winner.town || '') + '), запасных: ' + h.reserves.length + ', участников: ' + h.total + '</div>';
+        ' (' + esc(h.winner.town || '') + '), претендентов: ' + h.reserves.length + ', участников: ' + h.total + '</div>';
     }).join('') || '<div>Розыгрышей ещё не было</div>';
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -369,7 +369,7 @@
         rows.push([d, role, n, vk, vk ? 'https://vk.com/id' + vk : '', p.surname, p.name, p.town || '', h.total]);
       };
       line('Победитель', 1, h.winner);
-      h.reserves.forEach(function (p, i) { line('Запасной', i + 1, p); });
+      h.reserves.forEach(function (p, i) { line('Претендент', i + 1, p); });
     });
     var csv = '﻿' + rows.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(';'); }).join('\r\n');
     var a = document.createElement('a');
@@ -491,8 +491,8 @@
   function sendLog(draw, what, attempt) {
     if (!draw || !$('p-url').value.trim()) return;           // таблица не настроена — только локальный протокол
     var rows = what === 'winner' ? [logRow(draw.winner, 'Победитель', 1)]
-      : draw.reserves.map(function (p, i) { return logRow(p, 'Запасной', i + 1); });
-    if (what === 'all') rows = [logRow(draw.winner, 'Победитель', 1)].concat(draw.reserves.map(function (p, i) { return logRow(p, 'Запасной', i + 1); }));
+      : draw.reserves.map(function (p, i) { return logRow(p, 'Претендент', i + 1); });
+    if (what === 'all') rows = [logRow(draw.winner, 'Победитель', 1)].concat(draw.reserves.map(function (p, i) { return logRow(p, 'Претендент', i + 1); }));
     postLog({ drawId: draw.time, total: draw.total, rows: rows })
       .then(function (d) { draw.logged = (draw.logged || 0) + rows.length; saveHistory(); setStatus('Таблица: записано ' + d.written + ' строк ✓'); })
       .catch(function (e) {
