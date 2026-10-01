@@ -19,7 +19,7 @@ import csv, glob, os, re, sys, unicodedata
 
 EXCLUDE_WEEKLY_WINNERS = False   # True — не включать победителей еженедельных розыгрышей
 EXCLUDE_NO_REGION = True         # не включать без региона (и с регионом не из списка ДФО ниже)
-EXCLUDE_LATIN_NAMES = True       # не включать, если в имени/фамилии нет кириллицы
+EXCLUDE_LATIN_NAMES = False      # не включать, если в имени/фамилии нет кириллицы
 
 # Регионы ДФО, как их пишет бот; слева — встречающиеся варианты написания
 REGION_ALIASES = {'владивосток': 'Приморский край'}
