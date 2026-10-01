@@ -85,7 +85,10 @@
         <div class="winner-info">
           <div class="pill pill-red badge">Победитель!</div>
           <div class="label-white w-fio"><div id="w-surname"></div><div id="w-name"></div></div>
-          <div class="pill pill-dark w-town"><svg viewBox="0 0 24 24"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg><span id="w-town"></span></div>
+          <div class="w-meta">
+            <div class="pill pill-dark w-town"><svg viewBox="0 0 24 24"><path d="M12 2C8 2 5 5 5 9c0 5 7 13 7 13s7-8 7-13c0-4-3-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5z"/></svg><span id="w-town"></span></div>
+            <div class="pill pill-white w-vk">vk.com/id<span id="w-vk"></span></div>
+          </div>
           <div class="w-prize">забирает <b>1 500 000 ₽</b> на квартиру мечты</div>
         </div>
       </div>
@@ -112,14 +115,14 @@
   <p>Участников: <b id="p-count">0</b> <small id="p-source">(демо)</small></p>
 
   <fieldset>
-    <legend>Google Таблица</legend>
+    <legend>Google Таблица — запись итогов</legend>
     <label>Ссылка веб-приложения Apps Script
       <input type="url" id="p-url" placeholder="https://script.google.com/macros/s/…/exec">
     </label>
     <label>Ключ доступа (FINAL_KEY)
       <input type="password" id="p-key" autocomplete="off">
     </label>
-    <div class="row"><button id="p-load">Загрузить из таблицы</button></div>
+    <div class="row"><button id="p-ping">Проверить связь</button><button id="p-resend">Отправить итоги ещё раз</button><button id="p-load">Загрузить участников из таблицы</button></div>
     <small id="p-status"></small>
   </fieldset>
 

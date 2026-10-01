@@ -248,13 +248,18 @@
     $('w-name').textContent = w.name;
     $('w-town').textContent = w.town || '';
     $('w-town').parentNode.style.display = w.town ? '' : 'none'; // регион не указан — плашку не показываем
+    $('w-vk').textContent = isVk(w.id) ? w.id : '';
+    $('w-vk').parentNode.style.display = isVk(w.id) ? '' : 'none';
     show('winner');
     fitText($('w-surname'), 110); fitText($('w-name'), 80);
     launchKites();
     Confetti.celebrate(8000);
     fanfare();
     saveHistory();
+    sendLog(current, 'winner');
   }
+
+  function isVk(id) { return /^\d+$/.test(String(id || '')); }
 
   // Уменьшает шрифт, пока текст не влезет в строку
   function fitText(el, max) {
@@ -288,7 +293,7 @@
       var p = list && list[i], d = document.createElement('div');
       d.className = 'r-cell' + (p && !spinning ? ' show' : '');
       d.innerHTML = reserveCell(p, i);
-      if (p) { Data.setPhoto(d.querySelector('img'), p); d.querySelector('.r-name').textContent = p.surname + ' ' + p.name; d.querySelector('.r-town').textContent = p.town || ''; }
+      if (p) { Data.setPhoto(d.querySelector('img'), p); d.querySelector('.r-name').textContent = p.surname + ' ' + p.name; d.querySelector('.r-town').textContent = [p.town, isVk(p.id) ? 'vk.com/id' + p.id : ''].filter(Boolean).join(' · '); }
       g.appendChild(d);
     }
   }
@@ -322,7 +327,7 @@
       renderReserveGrid(picked);
       Confetti.burst($('stage').offsetWidth / 2, $('stage').offsetHeight, 220);
       tone(660, 0.2, 'triangle', 0.1); tone(990, 0.4, 'triangle', 0.1, 0.12);
-      if (current) { current.reserves = picked; saveHistory(); }
+      if (current) { current.reserves = picked; saveHistory(); sendLog(current, 'reserves'); }
       reserveBusy = false;
       $('btn-reserve-run').disabled = false;
       $('btn-reserve-run').textContent = 'На главную';
@@ -423,6 +428,44 @@
       .then(function () { $('p-load').disabled = false; });
   }
   $('p-load').addEventListener('click', loadFromSheet);
+
+  // ---------- Запись итогов в Google Таблицу (apps-script/final-log.gs) ----------
+  // POST с text/plain — без CORS-preflight; веб-приложение то же, что принимает заявки от BotMan.
+  function postLog(payload) {
+    var url = $('p-url').value.trim();
+    if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) return Promise.reject(new Error('не задана ссылка веб-приложения'));
+    store.set('sheetUrl', url); store.set('sheetKey', $('p-key').value.trim());
+    payload.action = 'final_log'; payload.key = $('p-key').value.trim();
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d.status !== 'ok') throw new Error(d.message || d.status); return d; });
+  }
+  function logRow(p, role, place) {
+    return { role: role, place: place, vkId: isVk(p.id) ? p.id : '', surname: p.surname, name: p.name, region: p.town || '' };
+  }
+  function sendLog(draw, what, attempt) {
+    if (!draw || !$('p-url').value.trim()) return;           // таблица не настроена — только локальный протокол
+    var rows = what === 'winner' ? [logRow(draw.winner, 'Победитель', 1)]
+      : draw.reserves.map(function (p, i) { return logRow(p, 'Запасной', i + 1); });
+    if (what === 'all') rows = [logRow(draw.winner, 'Победитель', 1)].concat(draw.reserves.map(function (p, i) { return logRow(p, 'Запасной', i + 1); }));
+    postLog({ drawId: draw.time, total: draw.total, rows: rows })
+      .then(function (d) { draw.logged = (draw.logged || 0) + rows.length; saveHistory(); setStatus('Таблица: записано ' + d.written + ' строк ✓'); })
+      .catch(function (e) {
+        attempt = (attempt || 0) + 1;
+        setStatus('Таблица: не записано (' + e.message + ')' + (attempt < 4 ? ', повтор…' : ' — нажмите «Отправить итоги ещё раз»'), true);
+        if (attempt < 4) setTimeout(function () { sendLog(draw, what, attempt); }, 3000 * attempt);
+      });
+  }
+  $('p-ping').addEventListener('click', function () {
+    setStatus('Проверяю…');
+    postLog({ drawId: 'ping', rows: [] }).then(function () { setStatus('Связь с таблицей есть ✓'); })
+      .catch(function (e) { setStatus('Нет связи: ' + e.message, true); });
+  });
+  $('p-resend').addEventListener('click', function () {
+    var d = current || history[history.length - 1];
+    if (!d) { setStatus('Розыгрышей ещё не было', true); return; }
+    sendLog(d, 'all');
+  });
   $('p-auto').addEventListener('change', function () { settings.auto = Math.max(0, +this.value || 0); store.set('auto', settings.auto); });
   $('p-sound').addEventListener('change', function () { settings.sound = this.checked; store.set('sound', settings.sound); });
   $('p-exclude').addEventListener('change', function () { settings.exclude = this.checked; store.set('exclude', settings.exclude); });

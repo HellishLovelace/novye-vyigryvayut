@@ -210,6 +210,8 @@ button { font: inherit; cursor: pointer; border: 0; background: none; color: inh
 .w-fio { padding: 26px 44px 30px; max-width: 100%; }
 #w-surname { font-family: var(--head); font-weight: 900; font-size: 112px; line-height: 1.02; text-transform: uppercase; white-space: nowrap; }
 #w-name { font-family: var(--head); font-weight: 800; font-size: 76px; line-height: 1.1; color: var(--tif-d); white-space: nowrap; }
+.w-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; }
+.w-vk { font-size: 36px; text-transform: none; transform: rotate(-1.5deg); }
 .w-town { display: inline-flex; align-items: center; gap: 14px; font-size: 44px; transform: rotate(1.5deg); }
 .w-town svg { width: 46px; height: 46px; fill: #fff; flex: none; }
 .w-prize { font-size: 34px; font-weight: 800; color: #fff; text-shadow: 2px 2px 0 rgba(17,17,17,.5); }
