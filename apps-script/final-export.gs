@@ -27,6 +27,10 @@ var SHEET_FINAL = 'Финал';
 var FINAL_ONLY_ACTIVE_REGIONS = true;      // true — только регионы из листа «Регионы» (пустой лист = все)
 var FINAL_EXCLUDE_WEEKLY_WINNERS = false;  // true — не включать тех, кто уже выигрывал еженедельный розыгрыш
 
+// Запросы к BotMan: пачки поменьше, чем у меток — на 2000+ запросов UrlFetch иногда отвечает «Address unavailable»
+var FINAL_BATCH_SIZE = 10;
+var FINAL_BATCH_PAUSE_MS = 500;
+
 // Проверка без записи: сколько человек попадёт в финал и почему остальные отсеяны
 function dryRunFinal() {
   var r = collectFinalPeople(SpreadsheetApp.getActiveSpreadsheet());
@@ -74,21 +78,25 @@ function buildFinalSheet() {
   // Имена и фото из BotMan — пачками параллельно, как метки в основном скрипте
   var todo = people.filter(function (p) { return p.botmanId && !cache[p.vkId]; });
   Logger.log('Запрашиваем в BotMan: ' + todo.length + ' (из прошлого запуска уже есть ' + Object.keys(cache).length + ')');
-  var unfinished = 0;
-  for (var s = 0; s < todo.length; s += BOTMAN_BATCH_SIZE) {
+  var unfinished = 0, failed = 0, notFound = 0;
+  for (var s = 0; s < todo.length; s += FINAL_BATCH_SIZE) {
     if (new Date().getTime() - start > MAX_EXECUTION_MS) { unfinished = todo.length - s; break; }
-    var chunk = todo.slice(s, s + BOTMAN_BATCH_SIZE);
+    var chunk = todo.slice(s, s + FINAL_BATCH_SIZE);
     var retry = [];
     fetchBotmanUsers(chunk, apiKey).forEach(function (r, i) {
-      if (r.code === 429) retry.push(chunk[i]);
-      else if (r.code === 200) cache[chunk[i].vkId] = r.user;
-      else Logger.log('BotMan user ' + chunk[i].botmanId + ': ' + r.code);
+      if (r.code === 200) cache[chunk[i].vkId] = r.user;
+      else if (r.code === 404) notFound++;           // подписчика нет в BotMan — будет «VK id…»
+      else retry.push(chunk[i]);                     // 429, сетевой сбой и т.п. — повторим
     });
     if (retry.length) {
       Utilities.sleep(BOTMAN_RETRY_PAUSE_MS);
-      fetchBotmanUsers(retry, apiKey).forEach(function (r, i) { if (r.code === 200) cache[retry[i].vkId] = r.user; });
+      fetchBotmanUsers(retry, apiKey).forEach(function (r, i) {
+        if (r.code === 200) cache[retry[i].vkId] = r.user;
+        else { failed++; if (failed <= 5) Logger.log('BotMan user ' + retry[i].botmanId + ': ' + (r.code || r.error)); }
+      });
     }
-    Utilities.sleep(BOTMAN_BATCH_PAUSE_MS);
+    if ((s / FINAL_BATCH_SIZE) % 20 === 19) Logger.log('…получено ' + Math.min(s + FINAL_BATCH_SIZE, todo.length) + ' из ' + todo.length);
+    Utilities.sleep(FINAL_BATCH_PAUSE_MS);
   }
 
   var out = [['VK ID', 'Фамилия', 'Имя', 'Населённый пункт', 'Фото', 'Страница VK']], noName = 0;
@@ -105,19 +113,30 @@ function buildFinalSheet() {
   PropertiesService.getScriptProperties().setProperty('FINAL_UPDATED',
     Utilities.formatDate(new Date(), 'Asia/Vladivostok', 'dd.MM.yyyy HH:mm') + ' (Владивосток)');
   Logger.log('Лист «' + SHEET_FINAL + '» готов: ' + (out.length - 1) + ' участников, без имени — ' + noName + '.');
-  if (unfinished) Logger.log('ВНИМАНИЕ: не успели запросить ' + unfinished + ' человек — запустите buildFinalSheet ещё раз.');
+  if (notFound) Logger.log('Нет в BotMan: ' + notFound + ' — будут показаны как «VK id…».');
+  if (failed || unfinished) Logger.log('ВНИМАНИЕ: не получено ' + (failed + unfinished) + ' человек (сбои сети / не хватило времени) — запустите buildFinalSheet ещё раз, дозапросятся только они.');
 }
 
-// Параллельный запрос пачки пользователей BotMan → [{code, user: {first, last, photo}}]
+// Пачка пользователей BotMan → [{code, user: {first, last, photo}, error}]
+// fetchAll падает целиком, если упал хоть один запрос («Address unavailable») —
+// тогда пауза и повтор, а если снова сбой — по одному, чтобы не терять всю пачку.
 function fetchBotmanUsers(list, apiKey) {
   var requests = list.map(function (p) {
     return { url: 'https://api.botman.pro/public/api/v1/users/' + encodeURIComponent(p.botmanId),
              method: 'get', headers: { 'x-api-key': apiKey }, muteHttpExceptions: true };
   });
-  var responses;
-  try { responses = UrlFetchApp.fetchAll(requests); }
-  catch (e) { Logger.log('Ошибка запроса к BotMan: ' + e); return list.map(function () { return { code: 0 }; }); }
+  var responses = null;
+  for (var attempt = 0; attempt < 2 && !responses; attempt++) {
+    try { responses = UrlFetchApp.fetchAll(requests); }
+    catch (e) { Utilities.sleep(2000); }
+  }
+  if (!responses) {
+    responses = requests.map(function (req) {
+      try { return UrlFetchApp.fetch(req.url, req); } catch (e) { return { error: String(e) }; }
+    });
+  }
   return responses.map(function (r) {
+    if (r.error) return { code: 0, error: r.error };
     var code = r.getResponseCode(), user = null;
     if (code === 200) {
       try {
