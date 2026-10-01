@@ -7,6 +7,10 @@
   * участники.csv           — лист «Участники» из Google Таблицы (Файл → Скачать → CSV).
                               Если его нет — в финал идут ВСЕ подписчики из экспорта (регион из колонки «Регион»).
   * регионы.csv (необяз.)   — лист «Регионы»; если есть и не пуст — в финал идут только эти регионы
+  * barkov-likes.csv        — vk.barkov.net «Активность в посте», только лайкнувшие (условие: лайк на пост)
+  * barkov-comments.csv     — vk.barkov.net «Сбор комментариев» к посту (условие: отметил 2 человек в одном комментарии)
+Подписка на группу проверяется ботом при регистрации — в базе только прошедшие регистрацию.
+Рядом пишет data/report.csv — кто и почему не прошёл (для протокола).
 Пишет data/final.csv — его загружает сайт (H → «CSV-файл»).
 
 Правила отбора те же, что в apps-script/final-export.gs.
@@ -46,6 +50,38 @@ def col(header, *patterns):
     return -1
 
 
+def mentioned(text, author):
+    """Разные люди, отмеченные в комментарии: [id123|Имя], @id123 и вручную набранные @ник."""
+    ids = set(re.findall(r'\[id(\d+)\|', text))
+    rest = re.sub(r'\[[^\]]*\]', ' ', text)
+    rest = re.sub(r'\(\s*@[^)]*\)', ' ', rest)            # «@id123 (@ник)» — это один человек
+    for m in re.findall(r'(?<![\w@])@([A-Za-z0-9_.]{3,})', rest):
+        mm = re.fullmatch(r'id(\d+)', m)
+        ids.add(mm.group(1) if mm else 'nick:' + m.lower())
+    ids.discard(author)
+    return ids
+
+
+def load_conditions():
+    """Лайкнувшие и отметившие двоих — из выгрузок vk.barkov.net. None — файла нет, условие не проверяем."""
+    likes = tagged = None
+    lf = find(r'likes.*\.csv$|лайк.*\.csv$|barkov.*post.*\.csv$')
+    cf = find(r'comments.*\.csv$|коммент.*\.csv$')
+    if lf:
+        t = read_csv(lf)
+        c = col(t[0], r'^id')
+        likes = {re.sub(r'\D', '', r[c]) for r in t[1:] if r and len(r) > c}
+    if cf:
+        t = read_csv(cf)
+        c_a, c_t = col(t[0], r'^id автора|^id'), col(t[0], r'текст')
+        tagged = set()
+        for r in t[1:]:
+            if len(r) <= max(c_a, c_t): continue
+            a = re.sub(r'\D', '', r[c_a])
+            if len(mentioned(r[c_t], a)) >= 2: tagged.add(a)
+    return likes, tagged, lf, cf
+
+
 def main():
     export = find(r'botman.*\.xlsx$|^task_.*\.xlsx$')
     parts = find(r'участник.*\.csv$')
@@ -70,6 +106,10 @@ def main():
     if regions_f:
         active = [norm(r[0]).lower() for r in read_csv(regions_f)[1:] if r and norm(r[0])]
 
+    likes, tagged, lf, cf = load_conditions()
+    print('Условие «лайк на пост»: ' + (f'{len(likes)} лайкнувших ({os.path.basename(lf)})' if likes is not None else 'НЕ проверяется — нет файла'))
+    print('Условие «отметил двоих в комментарии»: ' + (f'{len(tagged)} человек ({os.path.basename(cf)})' if tagged is not None else 'НЕ проверяется — нет файла'))
+
     # Участники из таблицы — официальный список; без него — все подписчики из экспорта
     if parts:
         t = read_csv(parts)
@@ -79,7 +119,8 @@ def main():
         print('Источник: ВСЕ подписчики из экспорта BotMan (листа «Участники» в data/ нет)')
     h = t[0]
     c_vk, c_fio, c_reg, c_st = col(h, r'vk id'), col(h, r'фио'), col(h, r'регион'), col(h, r'статус')
-    stats = dict(total=len(t) - 1, no_id=0, dup=0, region=0, weekly=0, no_name=0, no_region=0, latin=0)
+    stats = dict(total=len(t) - 1, no_id=0, dup=0, region=0, weekly=0, no_name=0, no_region=0, latin=0, no_like=0, no_tags=0)
+    report = []
     known = {x.lower(): x for x in DFO_REGIONS}
     seen, out = set(), []
     for r in t[1:]:
@@ -99,6 +140,12 @@ def main():
         if not last and not first and get(c_fio):
             p = get(c_fio).split(); last, first = (p + ['', ''])[:2]
         if EXCLUDE_LATIN_NAMES and not re.search('[А-Яа-яЁё]', last + first): stats['latin'] += 1; continue
+        no_like = likes is not None and vk not in likes
+        no_tags = tagged is not None and vk not in tagged
+        if no_like or no_tags:
+            stats['no_like'] += no_like; stats['no_tags'] += no_tags
+            report.append([vk, 'https://vk.com/id' + vk, 'нет' if no_like else 'да', 'нет' if no_tags else 'да'])
+            continue
         if not last and not first: stats['no_name'] += 1
         out.append([vk, last, first, reg, '', 'https://vk.com/id' + vk])
 
@@ -108,11 +155,17 @@ def main():
         w.writerow(['VK ID', 'Фамилия', 'Имя', 'Населённый пункт', 'Фото', 'Страница VK'])
         w.writerows(out)
 
+    with open(os.path.join(DATA, 'report.csv'), 'w', encoding='utf-8-sig', newline='') as f:
+        w = csv.writer(f, delimiter=';')
+        w.writerow(['VK ID', 'Страница VK', 'Лайк на пост', 'Отметил двоих в комментарии'])
+        w.writerows(report)
+
     by_reg = {}
     for r in out: by_reg[r[3]] = by_reg.get(r[3], 0) + 1
     print(f"Строк в «Участниках»: {stats['total']}")
     print(f"Отсеяно: без VK ID {stats['no_id']}, дубли {stats['dup']}, без региона/неизвестный регион {stats['no_region']}, "
           f"не активный регион {stats['region']}, латиница/без имени {stats['latin']}, еженедельные победители {stats['weekly']}")
+    print(f"Не выполнили условия: без лайка {stats['no_like']}, без отметки двоих {stats['no_tags']} (подробно — data/report.csv)")
     print(f"В финале: {len(out)}, без имени (будут «VK id…»): {stats['no_name']}")
     print('Активные регионы: ' + (', '.join(active) if active else 'все'))
     for k, v in sorted(by_reg.items(), key=lambda x: -x[1]): print(f'  {k}: {v}')
