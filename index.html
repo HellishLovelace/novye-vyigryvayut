@@ -115,6 +115,15 @@
   <p>Участников: <b id="p-count">0</b> <small id="p-source">(демо)</small></p>
 
   <fieldset>
+    <legend>Участники</legend>
+    <label>Пароль от списка
+      <input type="password" id="p-pass" autocomplete="off">
+    </label>
+    <div class="row"><button id="p-decrypt">Загрузить участников</button></div>
+    <small id="p-list-status"></small>
+  </fieldset>
+
+  <fieldset>
     <legend>Google Таблица — запись итогов</legend>
     <label>Ссылка веб-приложения Apps Script
       <input type="url" id="p-url" placeholder="https://script.google.com/macros/s/…/exec">

@@ -394,6 +394,41 @@
     r.readAsText(f, 'utf-8');
   });
   // Список, собранный tools/build_final.py (работает, когда сайт открыт через локальный сервер)
+  // Зашифрованный список assets/participants.enc (tools/encrypt_list.py) — расшифровка в браузере
+  function b64bytes(s) { return Uint8Array.from(atob(s), function (c) { return c.charCodeAt(0); }); }
+  function listStatus(msg, err) { $('p-list-status').textContent = msg; $('p-list-status').className = err ? 'err' : ''; }
+  $('p-decrypt').addEventListener('click', function () {
+    var pw = $('p-pass').value;
+    if (!pw) { listStatus('Введите пароль', true); return; }
+    if (!window.crypto || !crypto.subtle) { listStatus('Браузер не поддерживает расшифровку — откройте сайт по https-ссылке', true); return; }
+    listStatus('Расшифровываю…');
+    var box;
+    fetch('assets/participants.enc', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error('нет файла со списком'); return r.json(); })
+      .then(function (j) {
+        box = j;
+        return crypto.subtle.importKey('raw', new TextEncoder().encode(pw), 'PBKDF2', false, ['deriveKey']);
+      })
+      .then(function (base) {
+        return crypto.subtle.deriveKey({ name: 'PBKDF2', salt: b64bytes(box.salt), iterations: box.iter, hash: 'SHA-256' },
+          base, { name: 'AES-GCM', length: 256 }, false, ['decrypt']);
+      })
+      .then(function (key) {
+        return crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64bytes(box.iv) }, key, b64bytes(box.data))
+          .catch(function () { throw new Error('неверный пароль'); });
+      })
+      .then(function (buf) {
+        participants = Data.fromCSV(new TextDecoder().decode(buf));
+        source = 'зашифрованный список';
+        store.set('participants', participants); store.set('source', source);
+        $('p-pass').value = '';
+        syncPanel();
+        listStatus('Загружено участников: ' + participants.length + ' ✓');
+      })
+      .catch(function (e) { listStatus('Ошибка: ' + e.message, true); });
+  });
+  $('p-pass').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('p-decrypt').click(); });
+
   $('p-local').addEventListener('click', function () {
     fetch('data/final.csv', { cache: 'no-store' })
       .then(function (r) { if (!r.ok) throw new Error('нет файла data/final.csv'); return r.text(); })
